@@ -1,0 +1,121 @@
+'use client'
+
+import { useState } from 'react'
+import { signup } from '@/app/actions/auth'
+import Link from 'next/link'
+import { Flame, Terminal } from 'lucide-react'
+
+export default function SignupPage() {
+  const [error, setError] = useState<string | null>(null)
+  const [loading, setLoading] = useState(false)
+
+  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault()
+    setError(null)
+    setLoading(true)
+
+    const formData = new FormData(e.currentTarget)
+    const result = await signup(formData)
+
+    if (result && result.error) {
+      setError(result.error)
+      setLoading(false)
+    }
+  }
+
+  return (
+    <div className="flex min-h-screen flex-col justify-center bg-black bg-dot-grid px-6 py-12 lg:px-8">
+      {/* Logo */}
+      <div className="sm:mx-auto sm:w-full sm:max-w-sm flex flex-col items-center">
+        <Link href="/" className="flex items-center gap-2 font-mono font-bold text-2xl tracking-tight text-white mb-6">
+          <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-zinc-900 border border-zinc-800 text-white">
+            <Flame className="h-5 w-5 text-orange-500 fill-orange-500/20" />
+          </span>
+          <span>Streak<span className="text-zinc-400">Code</span></span>
+        </Link>
+        <h2 className="text-center text-xl font-semibold leading-9 tracking-tight text-white font-mono">
+          Create your challenge account
+        </h2>
+      </div>
+
+      <div className="mt-8 sm:mx-auto sm:w-full sm:max-w-md">
+        <div className="rounded-xl border border-zinc-800 bg-zinc-950/60 p-8 shadow-2xl">
+          <form className="space-y-6" onSubmit={handleSubmit}>
+            <div>
+              <label htmlFor="name" className="block text-xs font-mono font-medium leading-6 text-zinc-400">
+                FULL NAME
+              </label>
+              <div className="mt-2">
+                <input
+                  id="name"
+                  name="name"
+                  type="text"
+                  required
+                  placeholder="Karthik"
+                  className="block w-full rounded-md border border-zinc-800 bg-black px-3 py-2 text-sm text-white placeholder-zinc-600 focus:border-zinc-500 focus:outline-none focus:ring-1 focus:ring-zinc-500 font-mono"
+                />
+              </div>
+            </div>
+
+            <div>
+              <label htmlFor="email" className="block text-xs font-mono font-medium leading-6 text-zinc-400">
+                EMAIL ADDRESS
+              </label>
+              <div className="mt-2">
+                <input
+                  id="email"
+                  name="email"
+                  type="email"
+                  autoComplete="email"
+                  required
+                  placeholder="name@domain.com"
+                  className="block w-full rounded-md border border-zinc-800 bg-black px-3 py-2 text-sm text-white placeholder-zinc-600 focus:border-zinc-500 focus:outline-none focus:ring-1 focus:ring-zinc-500 font-mono"
+                />
+              </div>
+            </div>
+
+            <div>
+              <label htmlFor="password" className="block text-xs font-mono font-medium leading-6 text-zinc-400">
+                PASSWORD
+              </label>
+              <div className="mt-2">
+                <input
+                  id="password"
+                  name="password"
+                  type="password"
+                  required
+                  placeholder="••••••••"
+                  className="block w-full rounded-md border border-zinc-800 bg-black px-3 py-2 text-sm text-white placeholder-zinc-600 focus:border-zinc-500 focus:outline-none focus:ring-1 focus:ring-zinc-500 font-mono"
+                />
+              </div>
+            </div>
+
+            {error && (
+              <div className="rounded-md border border-red-500/20 bg-red-500/10 p-3 flex items-start gap-2">
+                <Terminal className="h-4 w-4 text-red-500 mt-0.5 shrink-0" />
+                <span className="text-xs font-mono text-red-400 leading-normal">{error}</span>
+              </div>
+            )}
+
+            <div>
+              <button
+                type="submit"
+                disabled={loading}
+                className="flex w-full justify-center rounded-md bg-white px-3 py-2 text-sm font-semibold text-black hover:bg-zinc-200 transition-all font-mono disabled:opacity-50 cursor-pointer"
+              >
+                {loading ? 'Registering...' : 'Create Account'}
+              </button>
+            </div>
+          </form>
+
+          <p className="mt-6 text-center text-xs text-zinc-500 font-mono">
+            Already registered?{' '}
+            <Link href="/login" className="font-semibold text-zinc-300 hover:text-white transition-colors">
+              Sign in
+            </Link>
+          </p>
+        </div>
+      </div>
+    </div>
+  )
+}
