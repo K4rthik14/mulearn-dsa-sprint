@@ -30,7 +30,11 @@ export default function Navbar({ user }: NavbarProps) {
     { href: '/profile', label: 'Profile', icon: User },
   ]
 
-  const isAdmin = user?.isAdmin
+  const isAdmin = 
+    user?.isAdmin || 
+    (user as any)?.isadmin || 
+    (user as any)?.is_admin || 
+    false
 
   return (
     <nav className="border-b border-border bg-black/60 backdrop-blur-md sticky top-0 z-50">

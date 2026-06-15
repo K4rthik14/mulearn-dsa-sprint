@@ -162,87 +162,98 @@ export default async function AdminPage(props: { searchParams: Promise<AdminSear
     try {
       const supabase = await createClient()
 
-      // Fetch challenge days
-      const { data: days } = await supabase
-        .from('challengedays')
-        .select('*')
-        .order('dayNumber', { ascending: true })
+      // Fetch all database records concurrently to reduce load latency
+      const [
+        daysResult,
+        resourcesResult,
+        problemsResult,
+        subsResult,
+        contestsResult,
+        announcementsResult,
+        usersResult,
+        subCountsResult,
+        allDbSubsResult
+      ] = await Promise.all([
+        supabase
+          .from('challengedays')
+          .select('*')
+          .order('dayNumber', { ascending: true }),
 
-      challengeDays = days || []
+        supabase
+          .from('resources')
+          .select('*'),
 
-      // Fetch resources
-      const { data: dbResources } = await supabase
-        .from('resources')
-        .select('*')
+        supabase
+          .from('problems')
+          .select('*')
+          .order('orderIndex', { ascending: true }),
 
-      resourcesList = dbResources || []
+        supabase
+          .from('submissions')
+          .select(`
+            id,
+            userId,
+            challengeDayId,
+            screenshotUrl,
+            profileLink,
+            status,
+            submittedAt,
+            users:userId (
+              name,
+              email
+            ),
+            challengedays:challengeDayId (
+              dayNumber,
+              topic
+            )
+          `)
+          .eq('status', 'pending')
+          .order('submittedAt', { ascending: false }),
 
-      // Fetch problems
-      const { data: dbProblems } = await supabase
-        .from('problems')
-        .select('*')
-        .order('orderIndex', { ascending: true })
+        supabase
+          .from('contests')
+          .select('*')
+          .order('startTime', { ascending: true }),
 
-      problemsList = dbProblems || []
+        supabase
+          .from('announcements')
+          .select('*')
+          .order('createdAt', { ascending: false }),
 
-      // Fetch pending submissions
-      const { data: subs } = await supabase
-        .from('submissions')
-        .select(`
-          id,
-          userId,
-          challengeDayId,
-          screenshotUrl,
-          profileLink,
-          status,
-          submittedAt,
-          users:userId (
+        supabase
+          .from('users')
+          .select(`
+            id,
             name,
-            email
-          ),
-          challengedays:challengeDayId (
-            dayNumber,
-            topic
-          )
-        `)
-        .eq('status', 'pending')
-        .order('submittedAt', { ascending: false })
+            email,
+            isBanned,
+            createdAt,
+            leaderboard (
+              score,
+              streak,
+              longestStreak
+            )
+          `),
 
-      pendingSubmissions = subs as unknown as SubmissionReview[] || []
+        supabase
+          .from('submissions')
+          .select('userId'),
 
-      // Fetch contests
-      const { data: dbContests } = await supabase
-        .from('contests')
-        .select('*')
-        .order('startTime', { ascending: true })
-      contestsList = dbContests || []
+        supabase
+          .from('submissions')
+          .select('userId, challengeDayId, status, challengedays(dayNumber, topic)')
+      ])
 
-      // Fetch announcements
-      const { data: dbAnnouncements } = await supabase
-        .from('announcements')
-        .select('*')
-        .order('createdAt', { ascending: false })
-      announcementsList = dbAnnouncements || []
+      challengeDays = daysResult.data || []
+      resourcesList = resourcesResult.data || []
+      problemsList = problemsResult.data || []
+      pendingSubmissions = subsResult.data as unknown as SubmissionReview[] || []
+      contestsList = contestsResult.data || []
+      announcementsList = announcementsResult.data || []
 
-      // Fetch participants list
-      const { data: dbUsers } = await supabase
-        .from('users')
-        .select(`
-          id,
-          name,
-          email,
-          isBanned,
-          createdAt,
-          leaderboard (
-            score,
-            streak,
-            longestStreak
-          )
-        `)
-
-      const { data: dbSubCounts } = await supabase
-        .from('submissions')
-        .select('userId')
+      const dbUsers = usersResult.data
+      const dbSubCounts = subCountsResult.data
+      const allDbSubs = allDbSubsResult.data
 
       const submissionCounts: Record<string, number> = {}
       if (dbSubCounts) {
@@ -264,11 +275,6 @@ export default async function AdminPage(props: { searchParams: Promise<AdminSear
         } : null,
         submissionsCount: submissionCounts[u.id] || 0
       }))
-
-      // Pre-calculate Analytics Stats
-      const { data: allDbSubs } = await supabase
-        .from('submissions')
-        .select('userId, challengeDayId, status, challengedays(dayNumber, topic)')
 
       const approvedSubmissions = allDbSubs ? allDbSubs.filter((s: any) => s.status === 'approved') : []
       const pendingSubmissionsCount = allDbSubs ? allDbSubs.filter((s: any) => s.status === 'pending').length : 0
