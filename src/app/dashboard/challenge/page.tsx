@@ -119,6 +119,7 @@ export default async function ChallengePage(props: { searchParams: Promise<Searc
         .from('problems')
         .select('*')
         .eq('challengeDayId', currentChallengeDay.id)
+        .order('orderIndex', { ascending: true })
 
       problems = probData || []
 
@@ -252,32 +253,52 @@ export default async function ChallengePage(props: { searchParams: Promise<Searc
               <p className="text-xs text-zinc-500 italic">No problems added for this day yet.</p>
             ) : (
               <div className="space-y-3">
-                {problems.map((prob) => (
-                  <div
-                    key={prob.id}
-                    className="flex items-center justify-between p-3 rounded-lg border border-zinc-900 bg-zinc-950/40"
-                  >
-                    <div className="flex items-center gap-3">
-                      <span className={`text-[9px] font-mono px-2 py-0.5 rounded border ${
-                        prob.difficulty === 'Easy' ? 'border-emerald-500/20 bg-emerald-500/10 text-emerald-400' :
-                        prob.difficulty === 'Medium' ? 'border-amber-500/20 bg-amber-500/10 text-amber-400' :
-                        'border-red-500/20 bg-red-500/10 text-red-400'
-                      }`}>
-                        {prob.difficulty}
-                      </span>
-                      <span className="text-xs font-medium text-zinc-200">{prob.title}</span>
-                    </div>
-                    <a
-                      href={prob.url}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="inline-flex items-center gap-1.5 rounded bg-zinc-900 border border-zinc-800 hover:border-zinc-700 px-2.5 py-1 text-[11px] font-medium text-white transition-all font-mono"
+                {problems.map((prob) => {
+                  const platform = prob.platform || 'LeetCode'
+                  const platformColor = 
+                    platform === 'LeetCode' ? 'border-amber-500/20 bg-amber-500/10 text-amber-500' :
+                    platform === 'Codeforces' ? 'border-blue-500/20 bg-blue-500/10 text-blue-400' :
+                    'border-emerald-500/20 bg-emerald-500/10 text-emerald-400'
+
+                  return (
+                    <div
+                      key={prob.id}
+                      className="flex flex-col sm:flex-row sm:items-center justify-between p-3.5 rounded-lg border border-zinc-900 bg-zinc-950/40 gap-3"
                     >
-                      Solve
-                      <ExternalLink className="h-3 w-3" />
-                    </a>
-                  </div>
-                ))}
+                      <div className="flex flex-wrap items-center gap-2">
+                        <span className={`text-[9px] font-mono px-2 py-0.5 rounded border ${
+                          prob.difficulty === 'Easy' ? 'border-emerald-500/20 bg-emerald-500/10 text-emerald-400' :
+                          prob.difficulty === 'Medium' ? 'border-amber-500/20 bg-amber-500/10 text-amber-500' :
+                          'border-red-500/20 bg-red-500/10 text-red-400'
+                        }`}>
+                          {prob.difficulty}
+                        </span>
+                        
+                        <span className={`text-[9px] font-mono px-2 py-0.5 rounded border ${platformColor}`}>
+                          {platform}
+                        </span>
+
+                        <span className="text-xs font-semibold text-zinc-200 font-mono ml-1">{prob.title}</span>
+                      </div>
+                      
+                      <div className="flex items-center justify-between sm:justify-end gap-3 font-mono">
+                        <span className="text-[10px] text-zinc-500 font-bold shrink-0">
+                          +{prob.points || 10} PTS
+                        </span>
+                        
+                        <a
+                          href={prob.url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="inline-flex items-center gap-1.5 rounded bg-zinc-900 border border-zinc-800 hover:border-zinc-700 px-2.5 py-1 text-[11px] font-medium text-white transition-all"
+                        >
+                          Solve
+                          <ExternalLink className="h-3 w-3 text-zinc-400" />
+                        </a>
+                      </div>
+                    </div>
+                  )
+                })}
               </div>
             )}
           </div>

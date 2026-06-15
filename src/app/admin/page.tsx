@@ -3,9 +3,9 @@ import Link from 'next/link'
 import { getSessionUser } from '@/utils/supabase/user'
 import { createClient } from '@/utils/supabase/server'
 import { Plus, Shield, Check, X, Calendar, BookOpen, Code, FileText, Terminal, Users, Flame, AlertCircle } from 'lucide-react'
-import AdminFormSection from '@/components/AdminFormSection'
 import ChallengeDaysManager from '@/components/ChallengeDaysManager'
 import ResourcesManager from '@/components/ResourcesManager'
+import ProblemsManager from '@/components/ProblemsManager'
 
 interface SubmissionReview {
   id: string
@@ -42,6 +42,7 @@ export default async function AdminPage(props: { searchParams: Promise<AdminSear
   let challengeDays: any[] = []
   let pendingSubmissions: SubmissionReview[] = []
   let resourcesList: any[] = []
+  let problemsList: any[] = []
   let isMock = false
   let stats = {
     totalUsers: 0,
@@ -65,6 +66,10 @@ export default async function AdminPage(props: { searchParams: Promise<AdminSear
     resourcesList = [
       { id: 'r1', challengeDayId: '1', title: 'Video: NeetCode DSA Introduction', url: 'https://youtube.com', type: 'YouTube' },
       { id: 'r2', challengeDayId: '1', title: 'Article: Array Techniques Guide', url: 'https://leetcode.com', type: 'Article' }
+    ]
+    problemsList = [
+      { id: 'p1', challengeDayId: '1', title: 'Two Sum', platform: 'LeetCode', difficulty: 'Easy', points: 10, orderIndex: 0, url: 'https://leetcode.com/problems/two-sum/' },
+      { id: 'p2', challengeDayId: '1', title: 'Contains Duplicate', platform: 'LeetCode', difficulty: 'Easy', points: 10, orderIndex: 1, url: 'https://leetcode.com/problems/contains-duplicate/' }
     ]
     pendingSubmissions = [
       {
@@ -114,6 +119,14 @@ export default async function AdminPage(props: { searchParams: Promise<AdminSear
         .select('*')
 
       resourcesList = dbResources || []
+
+      // Fetch problems
+      const { data: dbProblems } = await supabase
+        .from('problems')
+        .select('*')
+        .order('orderIndex', { ascending: true })
+
+      problemsList = dbProblems || []
 
       // Fetch pending submissions
       const { data: subs } = await supabase
@@ -279,14 +292,14 @@ export default async function AdminPage(props: { searchParams: Promise<AdminSear
           LEARNING RESOURCES ({resourcesList.length})
         </Link>
         <Link
-          href="/admin?tab=add-links"
+          href="/admin?tab=problems"
           className={`px-4 py-2.5 border-b-2 font-medium transition-all whitespace-nowrap ${
-            activeTab === 'add-links'
+            activeTab === 'problems'
               ? 'border-orange-500 text-white bg-zinc-950/20'
               : 'border-transparent text-zinc-500 hover:text-zinc-300'
           }`}
         >
-          ADD PROBLEMS
+          PRACTICE PROBLEMS ({problemsList.length})
         </Link>
       </div>
 
@@ -403,10 +416,8 @@ export default async function AdminPage(props: { searchParams: Promise<AdminSear
         <ResourcesManager challengeDays={challengeDays} initialResources={resourcesList} />
       )}
 
-      {activeTab === 'add-links' && (
-        <div className="max-w-xl">
-          <AdminFormSection challengeDays={challengeDays} />
-        </div>
+      {activeTab === 'problems' && (
+        <ProblemsManager challengeDays={challengeDays} initialProblems={problemsList} />
       )}
     </div>
   )

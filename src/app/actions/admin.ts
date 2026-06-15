@@ -214,19 +214,122 @@ export async function addProblem(formData: FormData) {
 
   const challengeDayId = formData.get('challengeDayId') as string
   const title = formData.get('title') as string
+  const platform = (formData.get('platform') as string) || 'LeetCode'
   const difficulty = formData.get('difficulty') as 'Easy' | 'Medium' | 'Hard'
+  const points = parseInt(formData.get('points') as string || '10', 10)
   const url = formData.get('url') as string
 
   if (!challengeDayId || !title || !difficulty || !url) {
     return { error: 'All fields are required' }
   }
 
+  // Get max order index for this day
+  const { data: existing } = await supabase
+    .from('problems')
+    .select('orderIndex')
+    .eq('challengeDayId', challengeDayId)
+    .order('orderIndex', { ascending: false })
+    .limit(1)
+
+  const nextIndex = existing && existing.length > 0 ? (existing[0].orderIndex + 1) : 0
+
   const { error } = await supabase
     .from('problems')
-    .insert({ challengeDayId, title, difficulty, url })
+    .insert({ challengeDayId, title, platform, difficulty, points, orderIndex: nextIndex, url })
 
   if (error) {
     return { error: error.message }
+  }
+
+  revalidatePath('/dashboard')
+  revalidatePath('/admin')
+
+  return { success: true }
+}
+
+export async function updateProblem(formData: FormData) {
+  const supabase = await createClient()
+  if (!(await checkAdmin(supabase))) {
+    return { error: 'Unauthorized. Admin role required.' }
+  }
+
+  const id = formData.get('id') as string
+  const challengeDayId = formData.get('challengeDayId') as string
+  const title = formData.get('title') as string
+  const platform = (formData.get('platform') as string) || 'LeetCode'
+  const difficulty = formData.get('difficulty') as 'Easy' | 'Medium' | 'Hard'
+  const points = parseInt(formData.get('points') as string || '10', 10)
+  const url = formData.get('url') as string
+  const orderIndexVal = formData.get('orderIndex')
+
+  if (!id || !challengeDayId || !title || !difficulty || !url) {
+    return { error: 'All fields are required' }
+  }
+
+  const updatePayload: any = { challengeDayId, title, platform, difficulty, points, url }
+  if (orderIndexVal !== null) {
+    updatePayload.orderIndex = parseInt(orderIndexVal as string, 10)
+  }
+
+  const { error } = await supabase
+    .from('problems')
+    .update(updatePayload)
+    .eq('id', id)
+
+  if (error) {
+    return { error: error.message }
+  }
+
+  revalidatePath('/dashboard')
+  revalidatePath('/admin')
+
+  return { success: true }
+}
+
+export async function deleteProblem(id: string) {
+  const supabase = await createClient()
+  if (!(await checkAdmin(supabase))) {
+    return { error: 'Unauthorized. Admin role required.' }
+  }
+
+  if (!id) {
+    return { error: 'ID is required' }
+  }
+
+  const { error } = await supabase
+    .from('problems')
+    .delete()
+    .eq('id', id)
+
+  if (error) {
+    return { error: error.message }
+  }
+
+  revalidatePath('/dashboard')
+  revalidatePath('/admin')
+
+  return { success: true }
+}
+
+export async function reorderProblems(problemIds: string[]) {
+  const supabase = await createClient()
+  if (!(await checkAdmin(supabase))) {
+    return { error: 'Unauthorized. Admin role required.' }
+  }
+
+  if (!problemIds || problemIds.length === 0) {
+    return { error: 'No problems specified for reordering' }
+  }
+
+  for (let i = 0; i < problemIds.length; i++) {
+    const { error } = await supabase
+      .from('problems')
+      .update({ orderIndex: i })
+      .eq('id', problemIds[i])
+    
+    if (error) {
+      return { error: error.message }
+    }
   }
 
   revalidatePath('/dashboard')

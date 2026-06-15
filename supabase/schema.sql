@@ -45,7 +45,10 @@ create table if not exists public.problems (
   id uuid default gen_random_uuid() primary key,
   challengeDayId uuid references public.challengedays(id) on delete cascade not null,
   title text not null,
+  platform text check (platform in ('LeetCode', 'Codeforces', 'HackerRank')) not null default 'LeetCode',
   difficulty text check (difficulty in ('Easy', 'Medium', 'Hard')) not null,
+  points integer not null default 10,
+  orderIndex integer not null default 0,
   url text not null,
   createdAt timestamp with time zone default timezone('utc'::text, now()) not null
 );
