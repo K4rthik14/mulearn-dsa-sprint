@@ -79,7 +79,14 @@ export async function updateSession(request: NextRequest) {
       .eq('id', user?.id)
       .single();
 
-    const isAdmin = !!(dbUser?.isAdmin || user?.app_metadata?.is_admin || user?.user_metadata?.is_admin || user?.app_metadata?.isAdmin || user?.user_metadata?.isAdmin);
+    const isAdmin = !!(
+      (dbUser as any)?.isAdmin || 
+      (dbUser as any)?.isadmin || 
+      user?.app_metadata?.is_admin || 
+      user?.user_metadata?.is_admin || 
+      user?.app_metadata?.isAdmin || 
+      user?.user_metadata?.isAdmin
+    );
 
     if (!isAdmin) {
       url.pathname = '/dashboard'

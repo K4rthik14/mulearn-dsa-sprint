@@ -29,11 +29,20 @@ export async function getSessionUser(): Promise<SessionUser | null> {
       .eq('id', user.id)
       .single()
 
+    const isUserAdmin = !!(
+      (dbUser as any)?.isAdmin || 
+      (dbUser as any)?.isadmin || 
+      user.app_metadata?.is_admin || 
+      user.user_metadata?.is_admin || 
+      user.app_metadata?.isAdmin || 
+      user.user_metadata?.isAdmin
+    )
+
     return {
       id: user.id,
       email: user.email || null,
       name: dbUser?.name || user.user_metadata?.name || user.user_metadata?.full_name || 'User',
-      isAdmin: !!(dbUser?.isAdmin || user.app_metadata?.is_admin || user.user_metadata?.is_admin || user.app_metadata?.isAdmin || user.user_metadata?.isAdmin)
+      isAdmin: isUserAdmin
     }
   } catch (error) {
     console.error('Error fetching session user:', error)
