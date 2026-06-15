@@ -57,21 +57,45 @@ export async function submitChallenge(formData: FormData) {
     return { error: 'Please upload a screenshot or provide a LeetCode profile link.' }
   }
 
-  // Insert submission
-  const { error: dbError } = await supabase
+  // Check for existing submission
+  const { data: existingSub } = await supabase
     .from('submissions')
-    .insert({
-      userId: user.id,
-      challengeDayId,
-      screenshotUrl,
-      profileLink: profileLink || null,
-      status: 'approved' // Auto-approve to make progress immediate for users
-    })
+    .select('id, status')
+    .eq('userId', user.id)
+    .eq('challengeDayId', challengeDayId)
+    .maybeSingle()
 
-  if (dbError) {
-    if (dbError.code === '23505') { // Unique constraint code
+  let dbError = null
+
+  if (existingSub) {
+    if (existingSub.status === 'rejected') {
+      const { error } = await supabase
+        .from('submissions')
+        .update({
+          screenshotUrl,
+          profileLink: profileLink || null,
+          status: 'pending',
+          rejectionReason: null
+        })
+        .eq('id', existingSub.id)
+      dbError = error
+    } else {
       return { error: 'You have already submitted a solution for this day!' }
     }
+  } else {
+    const { error } = await supabase
+      .from('submissions')
+      .insert({
+        userId: user.id,
+        challengeDayId,
+        screenshotUrl,
+        profileLink: profileLink || null,
+        status: 'pending'
+      })
+    dbError = error
+  }
+
+  if (dbError) {
     return { error: `Database submission failed: ${dbError.message}` }
   }
 

@@ -63,7 +63,8 @@ create table if not exists public.submissions (
   challengeDayId uuid references public.challengedays(id) on delete cascade not null,
   screenshotUrl text,
   profileLink text,
-  status text check (status in ('pending', 'approved', 'rejected')) default 'approved' not null,
+  status text check (status in ('pending', 'approved', 'rejected')) default 'pending' not null,
+  rejectionReason text,
   submittedAt timestamp with time zone default timezone('utc'::text, now()) not null,
   -- Ensure a user can submit only once per challenge day
   unique (userId, challengeDayId)

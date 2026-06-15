@@ -312,17 +312,29 @@ export default async function ChallengePage(props: { searchParams: Promise<Searc
               SUBMISSION LOG
             </h3>
 
-            {existingSubmission ? (
+            {existingSubmission && existingSubmission.status !== 'rejected' ? (
               <div className="space-y-4">
-                <div className="rounded-lg border border-emerald-500/20 bg-emerald-500/5 p-4 flex flex-col gap-2">
-                  <div className="flex items-center gap-2 text-xs font-mono font-semibold text-emerald-400">
-                    <CheckCircle2 className="h-4 w-4 shrink-0" />
-                    Solution Logged!
+                {existingSubmission.status === 'pending' ? (
+                  <div className="rounded-lg border border-amber-500/20 bg-amber-500/5 p-4 flex flex-col gap-2">
+                    <div className="flex items-center gap-2 text-xs font-mono font-semibold text-amber-500">
+                      <AlertTriangle className="h-4 w-4 shrink-0" />
+                      Pending Review
+                    </div>
+                    <p className="text-[11px] text-zinc-400">
+                      Your solution was logged on {new Date(existingSubmission.submittedAt).toLocaleDateString()} and is pending admin approval.
+                    </p>
                   </div>
-                  <p className="text-[11px] text-zinc-400">
-                    Your challenge solution was logged on {new Date(existingSubmission.submittedAt).toLocaleDateString()}.
-                  </p>
-                </div>
+                ) : (
+                  <div className="rounded-lg border border-emerald-500/20 bg-emerald-500/5 p-4 flex flex-col gap-2">
+                    <div className="flex items-center gap-2 text-xs font-mono font-semibold text-emerald-400">
+                      <CheckCircle2 className="h-4 w-4 shrink-0" />
+                      Approved / Solution Logged!
+                    </div>
+                    <p className="text-[11px] text-zinc-400">
+                      Your challenge solution was approved. Points and streak have been credited to your profile!
+                    </p>
+                  </div>
+                )}
 
                 {existingSubmission.profileLink && (
                   <div>
@@ -351,7 +363,23 @@ export default async function ChallengePage(props: { searchParams: Promise<Searc
                 )}
               </div>
             ) : (
-              <ChallengeSubmissionForm challengeDayId={currentChallengeDay?.id} />
+              <div className="space-y-4">
+                {existingSubmission && existingSubmission.status === 'rejected' && (
+                  <div className="rounded-lg border border-red-500/20 bg-red-500/5 p-4 flex flex-col gap-2">
+                    <div className="flex items-center gap-2 text-xs font-mono font-semibold text-red-400">
+                      <AlertTriangle className="h-4 w-4 shrink-0" />
+                      Submission Rejected
+                    </div>
+                    <p className="text-[11px] text-red-400/90 font-medium">
+                      Feedback: {existingSubmission.rejectionReason || 'No reason specified'}
+                    </p>
+                    <p className="text-[10px] text-zinc-500">
+                      Please review the feedback and submit a corrected solution link or screenshot below.
+                    </p>
+                  </div>
+                )}
+                <ChallengeSubmissionForm challengeDayId={currentChallengeDay?.id} />
+              </div>
             )}
           </div>
         </div>

@@ -371,15 +371,22 @@ export default async function AdminPage(props: { searchParams: Promise<AdminSear
                     </div>
 
                     {/* Review Actions */}
-                    <div className="flex justify-end gap-3 pt-2">
-                      <form action={async () => {
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pt-3 border-t border-zinc-900/60 mt-2">
+                      <form action={async (formData: FormData) => {
                         'use server'
+                        const reason = formData.get('rejectionReason') as string
                         const { updateSubmissionStatus } = await import('@/app/actions/admin')
-                        await updateSubmissionStatus(sub.id, 'rejected')
-                      }}>
+                        await updateSubmissionStatus(sub.id, 'rejected', reason)
+                      }} className="flex items-center gap-2 w-full sm:w-auto">
+                        <input
+                          type="text"
+                          name="rejectionReason"
+                          placeholder="Reason for rejection..."
+                          className="flex-1 sm:w-64 rounded border border-zinc-850 bg-black px-3 py-1 text-xs text-white placeholder-zinc-700 focus:border-zinc-500 focus:outline-none focus:ring-1 focus:ring-zinc-500 font-mono"
+                        />
                         <button
                           type="submit"
-                          className="inline-flex items-center gap-1 rounded bg-zinc-900 border border-zinc-850 hover:bg-red-950/20 hover:border-red-900 hover:text-red-400 px-3 py-1.5 text-xs font-mono font-medium text-zinc-400 transition-all cursor-pointer"
+                          className="inline-flex items-center gap-1 rounded bg-zinc-900 border border-zinc-850 hover:bg-red-950/20 hover:border-red-900 hover:text-red-400 px-3 py-1 text-xs font-mono font-medium text-zinc-400 transition-all cursor-pointer shrink-0"
                         >
                           <X className="h-3.5 w-3.5" />
                           Reject
@@ -390,10 +397,10 @@ export default async function AdminPage(props: { searchParams: Promise<AdminSear
                         'use server'
                         const { updateSubmissionStatus } = await import('@/app/actions/admin')
                         await updateSubmissionStatus(sub.id, 'approved')
-                      }}>
+                      }} className="shrink-0 self-end sm:self-auto">
                         <button
                           type="submit"
-                          className="inline-flex items-center gap-1 rounded bg-white border border-transparent hover:bg-zinc-200 px-3 py-1.5 text-xs font-mono font-bold text-black transition-all cursor-pointer"
+                          className="inline-flex items-center gap-1 rounded bg-white border border-transparent hover:bg-zinc-200 px-4 py-1 text-xs font-mono font-bold text-black transition-all cursor-pointer"
                         >
                           <Check className="h-3.5 w-3.5" />
                           Approve

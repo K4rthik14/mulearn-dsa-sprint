@@ -338,22 +338,135 @@ export async function reorderProblems(problemIds: string[]) {
   return { success: true }
 }
 
-export async function updateSubmissionStatus(submissionId: string, status: 'approved' | 'rejected') {
+export async function updateSubmissionStatus(
+  submissionId: string, 
+  status: 'approved' | 'rejected', 
+  rejectionReason?: string
+) {
   const supabase = await createClient()
   if (!(await checkAdmin(supabase))) {
     return { error: 'Unauthorized. Admin role required.' }
   }
 
-  const { error } = await supabase
+  // Get submission to find the userId
+  const { data: subData, error: fetchErr } = await supabase
     .from('submissions')
-    .update({ status })
+    .select('userId, challengeDayId')
+    .eq('id', submissionId)
+    .single()
+
+  if (fetchErr || !subData) {
+    return { error: fetchErr?.message || 'Submission not found' }
+  }
+
+  const userId = subData.userId
+
+  // Update status
+  const updateData: any = { 
+    status,
+    rejectionReason: status === 'rejected' ? (rejectionReason || 'No reason specified') : null
+  }
+
+  const { error: updateErr } = await supabase
+    .from('submissions')
+    .update(updateData)
     .eq('id', submissionId)
 
-  if (error) {
-    return { error: error.message }
+  if (updateErr) {
+    return { error: updateErr.message }
+  }
+
+  // Recalculate User Stats for Leaderboard
+  // 1. Fetch all approved submissions for the user
+  const { data: userSubs } = await supabase
+    .from('submissions')
+    .select('challengeDayId, submittedAt, challengedays(dayNumber)')
+    .eq('userId', userId)
+    .eq('status', 'approved')
+
+  const approvedSubs = userSubs || []
+
+  // 2. Fetch all problems to calculate points
+  let totalScore = 0
+  const completedDayIds = approvedSubs.map((s: any) => s.challengeDayId)
+  
+  if (completedDayIds.length > 0) {
+    for (const dayId of completedDayIds) {
+      const { data: probs } = await supabase
+        .from('problems')
+        .select('points')
+        .eq('challengeDayId', dayId)
+
+      const dayPoints = probs && probs.length > 0 
+        ? probs.reduce((sum: number, p: any) => sum + (p.points || 0), 0)
+        : 10 // baseline
+      
+      totalScore += dayPoints
+    }
+  }
+
+  // 3. Calculate streak and longest streak
+  const completedDayNumbers = approvedSubs
+    .map((s: any) => s.challengedays?.dayNumber || 0)
+    .filter(Boolean)
+  
+  completedDayNumbers.sort((a: number, b: number) => a - b)
+
+  let currentStreak = 0
+  let longestStreakVal = 0
+
+  if (completedDayNumbers.length > 0) {
+    currentStreak = 1
+    let lastDay = completedDayNumbers[completedDayNumbers.length - 1]
+    for (let i = completedDayNumbers.length - 2; i >= 0; i--) {
+      if (completedDayNumbers[i] === lastDay - 1) {
+        currentStreak++
+        lastDay = completedDayNumbers[i]
+      } else if (completedDayNumbers[i] === lastDay) {
+        continue
+      } else {
+        break
+      }
+    }
+
+    let currentRun = 0
+    let prevDay = -999
+    for (const day of completedDayNumbers) {
+      if (day === prevDay + 1) {
+        currentRun++
+      } else if (day === prevDay) {
+        // skip duplicate
+      } else {
+        currentRun = 1
+      }
+      prevDay = day
+      if (currentRun > longestStreakVal) {
+        longestStreakVal = currentRun
+      }
+    }
+  }
+
+  // 4. Update or Insert Leaderboard Entry
+  const latestSubDate = approvedSubs.length > 0
+    ? approvedSubs.sort((a: any, b: any) => new Date(b.submittedAt).getTime() - new Date(a.submittedAt).getTime())[0].submittedAt
+    : null
+
+  const { error: leadErr } = await supabase
+    .from('leaderboard')
+    .upsert({
+      userId,
+      score: totalScore,
+      streak: currentStreak,
+      longestStreak: longestStreakVal,
+      lastSubmittedAt: latestSubDate
+    })
+
+  if (leadErr) {
+    console.error('Failed to update leaderboard entry:', leadErr.message)
   }
 
   revalidatePath('/admin')
+  revalidatePath('/dashboard')
   revalidatePath('/leaderboard')
   revalidatePath('/profile')
 
