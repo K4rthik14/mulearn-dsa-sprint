@@ -2,6 +2,7 @@
 
 import { createClient } from '@/utils/supabase/server'
 import { revalidatePath } from 'next/cache'
+import { isUserAdmin } from '@/utils/supabase/user'
 
 // Helper to check if caller is admin
 async function checkAdmin(supabase: any) {
@@ -14,14 +15,23 @@ async function checkAdmin(supabase: any) {
     .eq('id', user.id)
     .single()
 
-  return !!(
-    (dbUser as any)?.isAdmin || 
-    (dbUser as any)?.isadmin || 
-    user?.app_metadata?.is_admin || 
-    user?.user_metadata?.is_admin || 
-    user?.app_metadata?.isAdmin || 
-    user?.user_metadata?.isAdmin
-  )
+  const mergedUser = {
+    ...user,
+    ...(dbUser || {})
+  }
+  const isAdmin = isUserAdmin(mergedUser)
+
+  console.log('[Server Action Admin Check Log]:', {
+    userId: user.id,
+    email: user.email,
+    rawDbUser: dbUser,
+    rawAuthUserAppMetadata: user.app_metadata,
+    rawAuthUserUserMetadata: user.user_metadata,
+    adminNormalized: isAdmin,
+    reason: isAdmin ? 'Action permitted' : 'Action rejected - user is not an admin'
+  })
+
+  return isAdmin
 }
 
 export async function createChallengeDay(formData: FormData) {

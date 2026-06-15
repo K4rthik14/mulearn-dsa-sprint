@@ -7,6 +7,20 @@ export interface SessionUser {
   isAdmin: boolean
 }
 
+export function isUserAdmin(user: any): boolean {
+  if (!user) return false
+  const val = !!(
+    user.isAdmin || 
+    user.isadmin || 
+    user.is_admin || 
+    user.app_metadata?.is_admin || 
+    user.user_metadata?.is_admin || 
+    user.app_metadata?.isAdmin || 
+    user.user_metadata?.isAdmin
+  )
+  return val
+}
+
 export async function getSessionUser(): Promise<SessionUser | null> {
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
   const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
@@ -29,20 +43,27 @@ export async function getSessionUser(): Promise<SessionUser | null> {
       .eq('id', user.id)
       .single()
 
-    const isUserAdmin = !!(
-      (dbUser as any)?.isAdmin || 
-      (dbUser as any)?.isadmin || 
-      user.app_metadata?.is_admin || 
-      user.user_metadata?.is_admin || 
-      user.app_metadata?.isAdmin || 
-      user.user_metadata?.isAdmin
-    )
+    const mergedUser = {
+      ...user,
+      ...(dbUser || {})
+    }
+    const adminNormalized = isUserAdmin(mergedUser)
+
+    console.log('[getSessionUser Auth Flow Log]:', {
+      userId: user.id,
+      email: user.email,
+      rawDbUser: dbUser,
+      rawAuthUserAppMetadata: user.app_metadata,
+      rawAuthUserUserMetadata: user.user_metadata,
+      adminNormalized,
+      reason: adminNormalized ? 'Authorized as admin' : 'Not marked as admin in db or metadata'
+    })
 
     return {
       id: user.id,
       email: user.email || null,
       name: dbUser?.name || user.user_metadata?.name || user.user_metadata?.full_name || 'User',
-      isAdmin: isUserAdmin
+      isAdmin: adminNormalized
     }
   } catch (error) {
     console.error('Error fetching session user:', error)

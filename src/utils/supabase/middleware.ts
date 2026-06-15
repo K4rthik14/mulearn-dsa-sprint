@@ -1,5 +1,6 @@
 import { createServerClient } from '@supabase/ssr'
 import { NextResponse, type NextRequest } from 'next/server'
+import { isUserAdmin } from '@/utils/supabase/user'
 
 export async function updateSession(request: NextRequest) {
   let supabaseResponse = NextResponse.next({
@@ -79,14 +80,21 @@ export async function updateSession(request: NextRequest) {
       .eq('id', user?.id)
       .single();
 
-    const isAdmin = !!(
-      (dbUser as any)?.isAdmin || 
-      (dbUser as any)?.isadmin || 
-      user?.app_metadata?.is_admin || 
-      user?.user_metadata?.is_admin || 
-      user?.app_metadata?.isAdmin || 
-      user?.user_metadata?.isAdmin
-    );
+    const mergedUser = {
+      ...user,
+      ...(dbUser || {})
+    }
+    const isAdmin = isUserAdmin(mergedUser);
+
+    console.log('[Middleware Admin Check Log]:', {
+      userId: user?.id,
+      email: user?.email,
+      rawDbUser: dbUser,
+      rawAuthUserAppMetadata: user?.app_metadata,
+      rawAuthUserUserMetadata: user?.user_metadata,
+      adminNormalized: isAdmin,
+      reason: isAdmin ? 'Access granted to /admin' : 'Access denied to /admin, redirecting to /dashboard'
+    })
 
     if (!isAdmin) {
       url.pathname = '/dashboard'

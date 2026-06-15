@@ -1,6 +1,6 @@
 import { redirect } from 'next/navigation'
 import Link from 'next/link'
-import { getSessionUser } from '@/utils/supabase/user'
+import { getSessionUser, isUserAdmin } from '@/utils/supabase/user'
 import { createClient } from '@/utils/supabase/server'
 import { 
   Plus, Shield, Check, X, Calendar, BookOpen, Code, FileText, 
@@ -40,8 +40,17 @@ export default async function AdminPage(props: { searchParams: Promise<AdminSear
   const searchParams = await props.searchParams
   const activeTab = searchParams.tab || 'submissions'
   const user = await getSessionUser()
+
+  const adminNormalized = isUserAdmin(user)
+
+  console.log('[Admin Page Direct Check Log]:', {
+    userId: user?.id,
+    email: user?.email,
+    adminNormalized,
+    reason: adminNormalized ? 'Allowed to view Admin Page' : 'Redirecting to /dashboard - User not admin'
+  })
   
-  if (!user || !user.isAdmin) {
+  if (!adminNormalized) {
     redirect('/dashboard')
   }
 
