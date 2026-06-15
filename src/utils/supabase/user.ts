@@ -43,6 +43,9 @@ export async function getSessionUser(): Promise<SessionUser | null> {
       .eq('id', user.id)
       .single()
 
+    console.log("SESSION USER:", JSON.stringify(user, null, 2))
+    console.log("DB USER:", JSON.stringify(dbUser, null, 2))
+
     const mergedUser = {
       ...user,
       ...(dbUser || {})

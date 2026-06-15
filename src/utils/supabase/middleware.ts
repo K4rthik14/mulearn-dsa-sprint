@@ -86,6 +86,9 @@ export async function updateSession(request: NextRequest) {
     }
     const isAdmin = isUserAdmin(mergedUser);
 
+    console.log("MIDDLEWARE USER:", JSON.stringify(dbUser, null, 2))
+    console.log("MIDDLEWARE ADMIN:", isUserAdmin(dbUser))
+
     console.log('[Middleware Admin Check Log]:', {
       userId: user?.id,
       email: user?.email,

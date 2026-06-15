@@ -43,6 +43,9 @@ export default async function AdminPage(props: { searchParams: Promise<AdminSear
 
   const adminNormalized = isUserAdmin(user)
 
+  console.log("ADMIN PAGE USER:", JSON.stringify(user, null, 2))
+  console.log("ADMIN PAGE ADMIN:", isUserAdmin(user))
+  
   console.log('[Admin Page Direct Check Log]:', {
     userId: user?.id,
     email: user?.email,
