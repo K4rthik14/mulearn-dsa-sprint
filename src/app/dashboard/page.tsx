@@ -2,7 +2,11 @@ import Link from 'next/link'
 import { redirect } from 'next/navigation'
 import { getSessionUser } from '@/utils/supabase/user'
 import { createClient } from '@/utils/supabase/server'
-import { Flame, Trophy, Calendar, CheckCircle2, Lock, ArrowRight, Award, Terminal } from 'lucide-react'
+import { 
+  Flame, Trophy, Calendar, CheckCircle2, Lock, ArrowRight, 
+  Award, Terminal, Megaphone, AlertCircle, AlertTriangle, Info 
+} from 'lucide-react'
+import ContestCountdown from '@/components/ContestCountdown'
 
 // Curated list of topics to display on the dashboard progression
 const TOPICS = [
@@ -29,6 +33,8 @@ export default async function DashboardPage() {
 
   let challengeDays: any[] = []
   let completedDayNumbers: number[] = []
+  let announcements: any[] = []
+  let contests: any[] = []
   let isMock = false
 
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
@@ -36,7 +42,6 @@ export default async function DashboardPage() {
 
   if (!supabaseUrl || !supabaseKey || supabaseUrl.includes('placeholder') || supabaseKey.includes('placeholder')) {
     isMock = true
-    // Seed mock data for preview
     dbStats = {
       score: 20,
       streak: 2,
@@ -51,6 +56,13 @@ export default async function DashboardPage() {
       topic: TOPICS[i] || 'DSA Practice',
       description: `Practice problems for Day ${i + 1}`
     }))
+    announcements = [
+      { id: '1', title: 'Day 21 Grand Finale Sprint rules', content: 'Ensure all submissions are approved before the countdown ends. The leaderboard will finalize exactly at midnight UTC.', priority: 'Important', createdAt: new Date().toISOString() },
+      { id: '2', title: 'New LeetCode Problems added', content: 'Check the problems tab for updated links.', priority: 'Info', createdAt: new Date(Date.now() - 7200000).toISOString() }
+    ]
+    contests = [
+      { id: 'c1', name: 'Sprint Milestone 1', startTime: new Date(Date.now() + 86400000).toISOString(), endTime: new Date(Date.now() + 86400000 * 2).toISOString(), contestLink: 'https://codeforces.com', contestType: 'Codeforces' }
+    ]
   } else {
     try {
       const supabase = await createClient()
@@ -84,7 +96,6 @@ export default async function DashboardPage() {
 
       challengeDays = days || []
 
-      // If no challenge days exist in DB, create some defaults for preview
       if (challengeDays.length === 0) {
         challengeDays = Array.from({ length: 21 }, (_, i) => ({
           id: `db-placeholder-day-${i + 1}`,
@@ -105,6 +116,19 @@ export default async function DashboardPage() {
         completedDayNumbers = subs.map((s: any) => s.challengedays?.dayNumber || 0).filter(Boolean)
         dbStats.completedDaysCount = completedDayNumbers.length
       }
+
+      // Fetch announcements
+      const { data: dbAnnouncements } = await supabase
+        .from('announcements')
+        .select('*')
+        .order('createdAt', { ascending: false })
+      announcements = dbAnnouncements || []
+
+      // Fetch contests
+      const { data: dbContests } = await supabase
+        .from('contests')
+        .select('*')
+      contests = dbContests || []
     } catch (err) {
       console.error('Dashboard error:', err)
       isMock = true
@@ -139,6 +163,9 @@ export default async function DashboardPage() {
           </div>
         </div>
       )}
+
+      {/* Live / Upcoming Contest countdown */}
+      <ContestCountdown contests={contests} />
 
       {/* Header & Main Stats Grid */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
@@ -207,6 +234,33 @@ export default async function DashboardPage() {
           </div>
         </div>
       </div>
+
+      {/* Announcements Block */}
+      {announcements.length > 0 && (
+        <div className="rounded-xl border border-zinc-900 bg-zinc-950/20 p-6 space-y-4 font-mono">
+          <h2 className="text-sm font-semibold text-white uppercase flex items-center gap-2">
+            <Megaphone className="h-4 w-4 text-orange-500" />
+            ANNOUNCEMENTS & UPDATES
+          </h2>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {announcements.slice(0, 4).map((ann) => (
+              <div key={ann.id} className="p-4 rounded-lg border border-zinc-900 bg-zinc-950/40 flex items-start gap-3">
+                {ann.priority === 'Important' ? (
+                  <AlertCircle className="h-4 w-4 text-red-500 mt-0.5 shrink-0" />
+                ) : ann.priority === 'Warning' ? (
+                  <AlertTriangle className="h-4 w-4 text-amber-500 mt-0.5 shrink-0" />
+                ) : (
+                  <Info className="h-4 w-4 text-blue-400 mt-0.5 shrink-0" />
+                )}
+                <div className="space-y-1">
+                  <h4 className="text-xs font-bold text-white leading-tight">{ann.title}</h4>
+                  <p className="text-[11px] text-zinc-400 leading-relaxed whitespace-pre-wrap">{ann.content}</p>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* Progress Journey Road */}
       <div className="rounded-xl border border-zinc-800 bg-zinc-950/30 p-8">

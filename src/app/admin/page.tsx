@@ -2,10 +2,17 @@ import { redirect } from 'next/navigation'
 import Link from 'next/link'
 import { getSessionUser } from '@/utils/supabase/user'
 import { createClient } from '@/utils/supabase/server'
-import { Plus, Shield, Check, X, Calendar, BookOpen, Code, FileText, Terminal, Users, Flame, AlertCircle } from 'lucide-react'
+import { 
+  Plus, Shield, Check, X, Calendar, BookOpen, Code, FileText, 
+  Terminal, Users, Flame, AlertCircle, Megaphone, BarChart3, UserCheck 
+} from 'lucide-react'
 import ChallengeDaysManager from '@/components/ChallengeDaysManager'
 import ResourcesManager from '@/components/ResourcesManager'
 import ProblemsManager from '@/components/ProblemsManager'
+import ParticipantManager from '@/components/ParticipantManager'
+import ContestManager from '@/components/ContestManager'
+import AnnouncementManager from '@/components/AnnouncementManager'
+import AnalyticsDashboard from '@/components/AnalyticsDashboard'
 
 interface SubmissionReview {
   id: string
@@ -34,7 +41,6 @@ export default async function AdminPage(props: { searchParams: Promise<AdminSear
   const activeTab = searchParams.tab || 'submissions'
   const user = await getSessionUser()
   
-  // Extra security check in Server Component
   if (!user || !user.isAdmin) {
     redirect('/dashboard')
   }
@@ -43,12 +49,30 @@ export default async function AdminPage(props: { searchParams: Promise<AdminSear
   let pendingSubmissions: SubmissionReview[] = []
   let resourcesList: any[] = []
   let problemsList: any[] = []
+  let participantsList: any[] = []
+  let contestsList: any[] = []
+  let announcementsList: any[] = []
+  
   let isMock = false
-  let stats = {
+  
+  // Analytics stats structure
+  let analyticsData = {
     totalUsers: 0,
-    totalSubmissions: 0,
     activeParticipants: 0,
-    pendingReviews: 0,
+    totalSubmissions: 0,
+    approvedSubmissions: 0,
+    pendingSubmissions: 0,
+    rejectedSubmissions: 0,
+    mostCompletedDay: null as any,
+    streakDistribution: {
+      zero: 0,
+      oneToFive: 0,
+      sixToTen: 0,
+      elevenToFifteen: 0,
+      sixteenPlus: 0
+    },
+    dayCompletions: [] as any[],
+    topPerformers: [] as any[]
   }
 
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
@@ -95,11 +119,44 @@ export default async function AdminPage(props: { searchParams: Promise<AdminSear
         challengedays: { dayNumber: 2, topic: 'Two Pointers' }
       }
     ]
-    stats = {
+    participantsList = [
+      { id: 'u1', name: 'Alice Smith', email: 'alice@mail.com', isBanned: false, createdAt: new Date().toISOString(), leaderboard: { score: 120, streak: 12, longestStreak: 12 }, submissionsCount: 12 },
+      { id: 'u2', name: 'Bob Johnson', email: 'bob@mail.com', isBanned: false, createdAt: new Date().toISOString(), leaderboard: { score: 90, streak: 9, longestStreak: 10 }, submissionsCount: 9 },
+      { id: 'u3', name: 'Charlie Brown', email: 'charlie@mail.com', isBanned: true, createdAt: new Date().toISOString(), leaderboard: { score: 0, streak: 0, longestStreak: 0 }, submissionsCount: 0 }
+    ]
+    contestsList = [
+      { id: 'c1', name: 'Sprint Milestone 1', startTime: new Date(Date.now() + 86400000).toISOString(), endTime: new Date(Date.now() + 86400000 * 2).toISOString(), contestLink: 'https://codeforces.com', contestType: 'Codeforces' }
+    ]
+    announcementsList = [
+      { id: 'a1', title: 'Welcome to StreakCode DSA Sprint!', content: 'Build consistency over the next 21 days.', priority: 'Info', createdAt: new Date().toISOString() }
+    ]
+
+    analyticsData = {
       totalUsers: 124,
-      totalSubmissions: 412,
       activeParticipants: 86,
-      pendingReviews: pendingSubmissions.length,
+      totalSubmissions: 412,
+      approvedSubmissions: 390,
+      pendingSubmissions: pendingSubmissions.length,
+      rejectedSubmissions: 18,
+      mostCompletedDay: { dayNumber: 1, topic: 'Arrays & Hashing', count: 98 },
+      streakDistribution: {
+        zero: 38,
+        oneToFive: 45,
+        sixToTen: 25,
+        elevenToFifteen: 12,
+        sixteenPlus: 4
+      },
+      dayCompletions: [
+        { dayNumber: 1, count: 98 },
+        { dayNumber: 2, count: 86 },
+        { dayNumber: 3, count: 74 },
+        { dayNumber: 4, count: 68 },
+        { dayNumber: 5, count: 60 }
+      ],
+      topPerformers: [
+        { name: 'Alice Smith', email: 'alice@mail.com', score: 120, streak: 12 },
+        { name: 'Bob Johnson', email: 'bob@mail.com', score: 90, streak: 9 }
+      ]
     }
   } else {
     try {
@@ -153,47 +210,162 @@ export default async function AdminPage(props: { searchParams: Promise<AdminSear
 
       pendingSubmissions = subs as unknown as SubmissionReview[] || []
 
-      // Fetch stats
-      const { count: usersCount } = await supabase
-        .from('users')
-        .select('*', { count: 'exact', head: true })
-      
-      const { count: subsCount } = await supabase
-        .from('submissions')
-        .select('*', { count: 'exact', head: true })
+      // Fetch contests
+      const { data: dbContests } = await supabase
+        .from('contests')
+        .select('*')
+        .order('startTime', { ascending: true })
+      contestsList = dbContests || []
 
-      const { data: activeSubs } = await supabase
+      // Fetch announcements
+      const { data: dbAnnouncements } = await supabase
+        .from('announcements')
+        .select('*')
+        .order('createdAt', { ascending: false })
+      announcementsList = dbAnnouncements || []
+
+      // Fetch participants list
+      const { data: dbUsers } = await supabase
+        .from('users')
+        .select(`
+          id,
+          name,
+          email,
+          isBanned,
+          createdAt,
+          leaderboard (
+            score,
+            streak,
+            longestStreak
+          )
+        `)
+
+      const { data: dbSubCounts } = await supabase
         .from('submissions')
         .select('userId')
-      
-      const activeCount = activeSubs ? new Set(activeSubs.map((s: any) => s.userId)).size : 0
 
-      const { count: pendingCount } = await supabase
+      const submissionCounts: Record<string, number> = {}
+      if (dbSubCounts) {
+        for (const s of dbSubCounts) {
+          submissionCounts[s.userId] = (submissionCounts[s.userId] || 0) + 1
+        }
+      }
+
+      participantsList = (dbUsers || []).map((u: any) => ({
+        id: u.id,
+        name: u.name,
+        email: u.email,
+        isBanned: !!u.isBanned,
+        createdAt: u.createdAt,
+        leaderboard: u.leaderboard ? {
+          score: u.leaderboard.score || 0,
+          streak: u.leaderboard.streak || 0,
+          longestStreak: u.leaderboard.longestStreak || 0
+        } : null,
+        submissionsCount: submissionCounts[u.id] || 0
+      }))
+
+      // Pre-calculate Analytics Stats
+      const { data: allDbSubs } = await supabase
         .from('submissions')
-        .select('*', { count: 'exact', head: true })
-        .eq('status', 'pending')
+        .select('userId, challengeDayId, status, challengedays(dayNumber, topic)')
 
-      stats = {
-        totalUsers: usersCount || 0,
-        totalSubmissions: subsCount || 0,
-        activeParticipants: activeCount || 0,
-        pendingReviews: pendingCount || 0,
+      const approvedSubmissions = allDbSubs ? allDbSubs.filter((s: any) => s.status === 'approved') : []
+      const pendingSubmissionsCount = allDbSubs ? allDbSubs.filter((s: any) => s.status === 'pending').length : 0
+      const rejectedSubmissionsCount = allDbSubs ? allDbSubs.filter((s: any) => s.status === 'rejected').length : 0
+
+      const completionsMap: Record<number, { count: number, topic: string }> = {}
+      for (const s of approvedSubmissions) {
+        const dayNum = (s as any).challengedays?.dayNumber
+        if (dayNum) {
+          if (!completionsMap[dayNum]) {
+            completionsMap[dayNum] = { count: 0, topic: (s as any).challengedays?.topic || 'DSA Practice' }
+          }
+          completionsMap[dayNum].count++
+        }
+      }
+
+      const dayCompletions = Array.from({ length: 21 }, (_, i) => {
+        const dayNum = i + 1
+        return {
+          dayNumber: dayNum,
+          count: completionsMap[dayNum]?.count || 0
+        }
+      })
+
+      let mostCompletedDayObj = null
+      let maxCompletions = 0
+      for (const dayNumStr in completionsMap) {
+        const d = completionsMap[parseInt(dayNumStr)]
+        if (d.count > maxCompletions) {
+          maxCompletions = d.count
+          mostCompletedDayObj = {
+            dayNumber: parseInt(dayNumStr),
+            topic: d.topic,
+            count: d.count
+          }
+        }
+      }
+
+      const streakDistribution = {
+        zero: 0,
+        oneToFive: 0,
+        sixToTen: 0,
+        elevenToFifteen: 0,
+        sixteenPlus: 0
+      }
+
+      for (const user of participantsList) {
+        const str = user.leaderboard?.streak || 0
+        if (str === 0) streakDistribution.zero++
+        else if (str <= 5) streakDistribution.oneToFive++
+        else if (str <= 10) streakDistribution.sixToTen++
+        else if (str <= 15) streakDistribution.elevenToFifteen++
+        else streakDistribution.sixteenPlus++
+      }
+
+      const { data: dbLeadStats } = await supabase
+        .from('leaderboard')
+        .select(`
+          userId,
+          score,
+          streak,
+          longestStreak,
+          users:userId (
+            name,
+            email
+          )
+        `)
+        .order('score', { ascending: false })
+
+      const leadEntries = dbLeadStats || []
+      const topPerformers = leadEntries.slice(0, 5).map((le: any) => ({
+        name: le.users?.name || 'Anonymous',
+        email: le.users?.email || '',
+        score: le.score,
+        streak: le.streak
+      }))
+
+      analyticsData = {
+        totalUsers: participantsList.length,
+        activeParticipants: participantsList.filter(u => (u.leaderboard?.streak || 0) > 0).length,
+        totalSubmissions: allDbSubs?.length || 0,
+        approvedSubmissions: approvedSubmissions.length,
+        pendingSubmissions: pendingSubmissionsCount,
+        rejectedSubmissions: rejectedSubmissionsCount,
+        mostCompletedDay: mostCompletedDayObj,
+        streakDistribution,
+        dayCompletions,
+        topPerformers
       }
     } catch (err) {
       console.error('Admin page error:', err)
       isMock = true
-      stats = {
-        totalUsers: 124,
-        totalSubmissions: 412,
-        activeParticipants: 86,
-        pendingReviews: pendingSubmissions.length || 2,
-      }
     }
   }
 
   return (
-    <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-10 flex-1 flex flex-col gap-10">
-      {/* Alert if using mock mode */}
+    <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-10 flex-1 flex flex-col gap-8">
       {isMock && (
         <div className="rounded-md border border-amber-500/20 bg-amber-500/10 p-3 flex items-start gap-2 max-w-xl">
           <Terminal className="h-4 w-4 text-amber-500 mt-0.5 shrink-0" />
@@ -210,97 +382,79 @@ export default async function AdminPage(props: { searchParams: Promise<AdminSear
             <Shield className="h-8 w-8 text-emerald-500" />
             Admin Panel
           </h1>
-          <p className="text-sm text-zinc-400 mt-1">
-            Manage challenges, upload curriculums, and review community solution uploads.
+          <p className="text-sm text-zinc-400 mt-1 font-mono">
+            Manage challenges, review solution uploads, track participants, and broadcast updates.
           </p>
         </div>
       </div>
 
       {/* Stats Cards */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        <div className="rounded-xl border border-zinc-800 bg-zinc-950/50 p-6 glow-border">
+        <div className="rounded-xl border border-zinc-900 bg-zinc-950/50 p-6">
           <div className="flex items-center justify-between text-zinc-500">
-            <span className="text-xs font-mono font-medium">TOTAL USERS</span>
+            <span className="text-xs font-mono font-semibold">TOTAL USERS</span>
             <Users className="h-4 w-4 text-emerald-500" />
           </div>
-          <div className="mt-2 flex items-baseline gap-2">
-            <span className="text-3xl font-bold tracking-tight text-white font-mono">{stats.totalUsers}</span>
+          <div className="mt-2">
+            <span className="text-3xl font-bold tracking-tight text-white font-mono">{analyticsData.totalUsers}</span>
           </div>
         </div>
 
-        <div className="rounded-xl border border-zinc-800 bg-zinc-950/50 p-6 glow-border">
+        <div className="rounded-xl border border-zinc-900 bg-zinc-950/50 p-6">
           <div className="flex items-center justify-between text-zinc-500">
-            <span className="text-xs font-mono font-medium">TOTAL SUBMISSIONS</span>
+            <span className="text-xs font-mono font-semibold">TOTAL SUBMISSIONS</span>
             <FileText className="h-4 w-4 text-blue-500" />
           </div>
-          <div className="mt-2 flex items-baseline gap-2">
-            <span className="text-3xl font-bold tracking-tight text-white font-mono">{stats.totalSubmissions}</span>
+          <div className="mt-2">
+            <span className="text-3xl font-bold tracking-tight text-white font-mono">{analyticsData.totalSubmissions}</span>
           </div>
         </div>
 
-        <div className="rounded-xl border border-zinc-800 bg-zinc-950/50 p-6 glow-border">
+        <div className="rounded-xl border border-zinc-900 bg-zinc-950/50 p-6">
           <div className="flex items-center justify-between text-zinc-500">
-            <span className="text-xs font-mono font-medium">ACTIVE PARTICIPANTS</span>
+            <span className="text-xs font-mono font-semibold">ACTIVE BUILDERS</span>
             <Flame className="h-4 w-4 text-orange-500" />
           </div>
-          <div className="mt-2 flex items-baseline gap-2">
-            <span className="text-3xl font-bold tracking-tight text-white font-mono">{stats.activeParticipants}</span>
+          <div className="mt-2">
+            <span className="text-3xl font-bold tracking-tight text-white font-mono">{analyticsData.activeParticipants}</span>
           </div>
         </div>
 
-        <div className="rounded-xl border border-zinc-800 bg-zinc-950/50 p-6 glow-border">
+        <div className="rounded-xl border border-zinc-900 bg-zinc-950/50 p-6">
           <div className="flex items-center justify-between text-zinc-500">
-            <span className="text-xs font-mono font-medium">PENDING REVIEWS</span>
+            <span className="text-xs font-mono font-semibold">PENDING REVIEWS</span>
             <AlertCircle className="h-4 w-4 text-amber-500" />
           </div>
-          <div className="mt-2 flex items-baseline gap-2">
-            <span className="text-3xl font-bold tracking-tight text-white font-mono">{stats.pendingReviews}</span>
+          <div className="mt-2">
+            <span className="text-3xl font-bold tracking-tight text-white font-mono">{pendingSubmissions.length}</span>
           </div>
         </div>
       </div>
 
       {/* Tabs Navigation */}
       <div className="flex border-b border-zinc-900 font-mono text-xs overflow-x-auto scrollbar-none">
-        <Link
-          href="/admin?tab=submissions"
-          className={`px-4 py-2.5 border-b-2 font-medium transition-all whitespace-nowrap ${
-            activeTab === 'submissions'
-              ? 'border-orange-500 text-white bg-zinc-950/20'
-              : 'border-transparent text-zinc-500 hover:text-zinc-300'
-          }`}
-        >
-          PENDING REVIEWS ({pendingSubmissions.length})
-        </Link>
-        <Link
-          href="/admin?tab=days"
-          className={`px-4 py-2.5 border-b-2 font-medium transition-all whitespace-nowrap ${
-            activeTab === 'days'
-              ? 'border-orange-500 text-white bg-zinc-950/20'
-              : 'border-transparent text-zinc-500 hover:text-zinc-300'
-          }`}
-        >
-          CHALLENGE DAYS ({challengeDays.length})
-        </Link>
-        <Link
-          href="/admin?tab=resources"
-          className={`px-4 py-2.5 border-b-2 font-medium transition-all whitespace-nowrap ${
-            activeTab === 'resources'
-              ? 'border-orange-500 text-white bg-zinc-950/20'
-              : 'border-transparent text-zinc-500 hover:text-zinc-300'
-          }`}
-        >
-          LEARNING RESOURCES ({resourcesList.length})
-        </Link>
-        <Link
-          href="/admin?tab=problems"
-          className={`px-4 py-2.5 border-b-2 font-medium transition-all whitespace-nowrap ${
-            activeTab === 'problems'
-              ? 'border-orange-500 text-white bg-zinc-950/20'
-              : 'border-transparent text-zinc-500 hover:text-zinc-300'
-          }`}
-        >
-          PRACTICE PROBLEMS ({problemsList.length})
-        </Link>
+        {[
+          { tabId: 'submissions', label: `PENDING REVIEWS (${pendingSubmissions.length})` },
+          { tabId: 'participants', label: 'PARTICIPANTS' },
+          { tabId: 'contests', label: 'CONTESTS' },
+          { tabId: 'announcements', label: 'ANNOUNCEMENTS' },
+          { tabId: 'analytics', label: 'ANALYTICS' },
+          { tabId: 'days', label: `CHALLENGE DAYS (${challengeDays.length})` },
+          { tabId: 'resources', label: `LEARNING RESOURCES (${resourcesList.length})` },
+          { tabId: 'problems', label: `PRACTICE PROBLEMS (${problemsList.length})` },
+        ].map((tab) => (
+          <Link
+            key={tab.tabId}
+            href={`/admin?tab=${tab.tabId}`}
+            className={`px-4 py-2.5 border-b-2 font-semibold transition-all whitespace-nowrap ${
+              activeTab === tab.tabId
+                ? 'border-orange-500 text-white bg-zinc-950/20'
+                : 'border-transparent text-zinc-500 hover:text-zinc-300'
+            }`}
+          >
+            {tab.label}
+          </Link>
+        ))}
       </div>
 
       {/* Tab Contents */}
@@ -425,6 +579,22 @@ export default async function AdminPage(props: { searchParams: Promise<AdminSear
 
       {activeTab === 'problems' && (
         <ProblemsManager challengeDays={challengeDays} initialProblems={problemsList} />
+      )}
+
+      {activeTab === 'participants' && (
+        <ParticipantManager initialUsers={participantsList} />
+      )}
+
+      {activeTab === 'contests' && (
+        <ContestManager initialContests={contestsList} />
+      )}
+
+      {activeTab === 'announcements' && (
+        <AnnouncementManager initialAnnouncements={announcementsList} />
+      )}
+
+      {activeTab === 'analytics' && (
+        <AnalyticsDashboard stats={analyticsData} />
       )}
     </div>
   )

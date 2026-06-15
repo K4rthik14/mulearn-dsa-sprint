@@ -264,3 +264,54 @@ drop trigger if exists on_submission_approved on public.submissions;
 create trigger on_submission_approved
   after insert or update of status on public.submissions
   for each row execute procedure public.handle_new_submission();
+
+-- Add isBanned column to users table
+alter table public.users add column if not exists "isBanned" boolean not null default false;
+
+-- 7. Contests Table
+create table if not exists public.contests (
+  id uuid default gen_random_uuid() primary key,
+  name text not null,
+  startTime timestamp with time zone not null,
+  endTime timestamp with time zone not null,
+  contestLink text not null,
+  contestType text check (contestType in ('Codeforces', 'HackerRank', 'External')) not null default 'External',
+  createdAt timestamp with time zone default timezone('utc'::text, now()) not null
+);
+
+-- Enable RLS on contests
+alter table public.contests enable row level security;
+
+create policy "Contests are readable by everyone" on public.contests
+  for select using (true);
+
+create policy "Contests are manageable by admins" on public.contests
+  for all using (
+    exists (
+      select 1 from public.users
+      where users.id = auth.uid() and users.isAdmin = true
+    )
+  );
+
+-- 8. Announcements Table
+create table if not exists public.announcements (
+  id uuid default gen_random_uuid() primary key,
+  title text not null,
+  content text not null,
+  priority text check (priority in ('Info', 'Warning', 'Important')) not null default 'Info',
+  createdAt timestamp with time zone default timezone('utc'::text, now()) not null
+);
+
+-- Enable RLS on announcements
+alter table public.announcements enable row level security;
+
+create policy "Announcements are readable by everyone" on public.announcements
+  for select using (true);
+
+create policy "Announcements are manageable by admins" on public.announcements
+  for all using (
+    exists (
+      select 1 from public.users
+      where users.id = auth.uid() and users.isAdmin = true
+    )
+  );

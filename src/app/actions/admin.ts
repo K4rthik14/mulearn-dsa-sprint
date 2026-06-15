@@ -472,3 +472,199 @@ export async function updateSubmissionStatus(
 
   return { success: true }
 }
+
+export async function banUser(userId: string, isBanned: boolean) {
+  const supabase = await createClient()
+  if (!(await checkAdmin(supabase))) {
+    return { error: 'Unauthorized. Admin role required.' }
+  }
+
+  const { error } = await supabase
+    .from('users')
+    .update({ isBanned })
+    .eq('id', userId)
+
+  if (error) {
+    return { error: error.message }
+  }
+
+  revalidatePath('/admin')
+  revalidatePath('/leaderboard')
+  revalidatePath('/profile')
+  revalidatePath('/dashboard')
+
+  return { success: true }
+}
+
+export async function resetStreak(userId: string) {
+  const supabase = await createClient()
+  if (!(await checkAdmin(supabase))) {
+    return { error: 'Unauthorized. Admin role required.' }
+  }
+
+  const { error } = await supabase
+    .from('leaderboard')
+    .update({ streak: 0, longestStreak: 0 })
+    .eq('userId', userId)
+
+  if (error) {
+    return { error: error.message }
+  }
+
+  revalidatePath('/admin')
+  revalidatePath('/leaderboard')
+  revalidatePath('/profile')
+  revalidatePath('/dashboard')
+
+  return { success: true }
+}
+
+export async function giveBonusPoints(userId: string, bonusPoints: number) {
+  const supabase = await createClient()
+  if (!(await checkAdmin(supabase))) {
+    return { error: 'Unauthorized. Admin role required.' }
+  }
+
+  if (isNaN(bonusPoints) || bonusPoints === 0) {
+    return { error: 'Invalid points value' }
+  }
+
+  const { data: lead } = await supabase
+    .from('leaderboard')
+    .select('score, streak, longestStreak')
+    .eq('userId', userId)
+    .maybeSingle()
+
+  const currentScore = lead?.score || 0
+  const newScore = currentScore + bonusPoints
+
+  const { error } = await supabase
+    .from('leaderboard')
+    .upsert({
+      userId,
+      score: newScore,
+      streak: lead?.streak || 0,
+      longestStreak: lead?.longestStreak || 0
+    })
+
+  if (error) {
+    return { error: error.message }
+  }
+
+  revalidatePath('/admin')
+  revalidatePath('/leaderboard')
+  revalidatePath('/profile')
+  revalidatePath('/dashboard')
+
+  return { success: true }
+}
+
+export async function createContest(formData: FormData) {
+  const supabase = await createClient()
+  if (!(await checkAdmin(supabase))) {
+    return { error: 'Unauthorized. Admin role required.' }
+  }
+
+  const name = formData.get('name') as string
+  const startTime = formData.get('startTime') as string
+  const endTime = formData.get('endTime') as string
+  const contestLink = formData.get('contestLink') as string
+  const contestType = formData.get('contestType') as 'Codeforces' | 'HackerRank' | 'External'
+
+  if (!name || !startTime || !endTime || !contestLink || !contestType) {
+    return { error: 'All fields are required' }
+  }
+
+  const { error } = await supabase
+    .from('contests')
+    .insert({
+      name,
+      startTime: new Date(startTime).toISOString(),
+      endTime: new Date(endTime).toISOString(),
+      contestLink,
+      contestType
+    })
+
+  if (error) {
+    return { error: error.message }
+  }
+
+  revalidatePath('/admin')
+  revalidatePath('/dashboard')
+
+  return { success: true }
+}
+
+export async function deleteContest(id: string) {
+  const supabase = await createClient()
+  if (!(await checkAdmin(supabase))) {
+    return { error: 'Unauthorized. Admin role required.' }
+  }
+
+  const { error } = await supabase
+    .from('contests')
+    .delete()
+    .eq('id', id)
+
+  if (error) {
+    return { error: error.message }
+  }
+
+  revalidatePath('/admin')
+  revalidatePath('/dashboard')
+
+  return { success: true }
+}
+
+export async function createAnnouncement(formData: FormData) {
+  const supabase = await createClient()
+  if (!(await checkAdmin(supabase))) {
+    return { error: 'Unauthorized. Admin role required.' }
+  }
+
+  const title = formData.get('title') as string
+  const content = formData.get('content') as string
+  const priority = formData.get('priority') as 'Info' | 'Warning' | 'Important'
+
+  if (!title || !content || !priority) {
+    return { error: 'All fields are required' }
+  }
+
+  const { error } = await supabase
+    .from('announcements')
+    .insert({
+      title,
+      content,
+      priority
+    })
+
+  if (error) {
+    return { error: error.message }
+  }
+
+  revalidatePath('/admin')
+  revalidatePath('/dashboard')
+
+  return { success: true }
+}
+
+export async function deleteAnnouncement(id: string) {
+  const supabase = await createClient()
+  if (!(await checkAdmin(supabase))) {
+    return { error: 'Unauthorized. Admin role required.' }
+  }
+
+  const { error } = await supabase
+    .from('announcements')
+    .delete()
+    .eq('id', id)
+
+  if (error) {
+    return { error: error.message }
+  }
+
+  revalidatePath('/admin')
+  revalidatePath('/dashboard')
+
+  return { success: true }
+}
