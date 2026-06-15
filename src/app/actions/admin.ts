@@ -26,6 +26,9 @@ export async function createChallengeDay(formData: FormData) {
   const dayNumber = parseInt(formData.get('dayNumber') as string)
   const topic = formData.get('topic') as string
   const description = formData.get('description') as string
+  const difficulty = formData.get('difficulty') as string || 'Easy'
+  const unlockDayVal = formData.get('unlockDay') as string
+  const unlockDay = unlockDayVal ? parseInt(unlockDayVal) : null
 
   if (isNaN(dayNumber) || !topic || !description) {
     return { error: 'All fields are required and Day Number must be a number' }
@@ -33,12 +36,82 @@ export async function createChallengeDay(formData: FormData) {
 
   const { error } = await supabase
     .from('challengedays')
-    .insert({ dayNumber, topic, description })
+    .insert({ 
+      dayNumber, 
+      topic, 
+      description,
+      difficulty,
+      unlockDay
+    })
 
   if (error) {
     if (error.code === '23505') {
       return { error: `Day ${dayNumber} already exists!` }
     }
+    return { error: error.message }
+  }
+
+  revalidatePath('/dashboard')
+  revalidatePath('/admin')
+
+  return { success: true }
+}
+
+export async function updateChallengeDay(formData: FormData) {
+  const supabase = await createClient()
+  if (!(await checkAdmin(supabase))) {
+    return { error: 'Unauthorized. Admin role required.' }
+  }
+
+  const id = formData.get('id') as string
+  const dayNumber = parseInt(formData.get('dayNumber') as string)
+  const topic = formData.get('topic') as string
+  const description = formData.get('description') as string
+  const difficulty = formData.get('difficulty') as string || 'Easy'
+  const unlockDayVal = formData.get('unlockDay') as string
+  const unlockDay = unlockDayVal ? parseInt(unlockDayVal) : null
+
+  if (!id || isNaN(dayNumber) || !topic || !description) {
+    return { error: 'All fields are required and Day Number must be a number' }
+  }
+
+  const { error } = await supabase
+    .from('challengedays')
+    .update({ 
+      dayNumber, 
+      topic, 
+      description,
+      difficulty,
+      unlockDay
+    })
+    .eq('id', id)
+
+  if (error) {
+    return { error: error.message }
+  }
+
+  revalidatePath('/dashboard')
+  revalidatePath('/admin')
+
+  return { success: true }
+}
+
+export async function deleteChallengeDay(id: string) {
+  const supabase = await createClient()
+  if (!(await checkAdmin(supabase))) {
+    return { error: 'Unauthorized. Admin role required.' }
+  }
+
+  if (!id) {
+    return { error: 'ID is required' }
+  }
+
+  const { error } = await supabase
+    .from('challengedays')
+    .delete()
+    .eq('id', id)
+
+  if (error) {
     return { error: error.message }
   }
 

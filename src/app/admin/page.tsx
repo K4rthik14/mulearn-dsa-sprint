@@ -1,8 +1,10 @@
 import { redirect } from 'next/navigation'
+import Link from 'next/link'
 import { getSessionUser } from '@/utils/supabase/user'
 import { createClient } from '@/utils/supabase/server'
 import { Plus, Shield, Check, X, Calendar, BookOpen, Code, FileText, Terminal, Users, Flame, AlertCircle } from 'lucide-react'
 import AdminFormSection from '@/components/AdminFormSection'
+import ChallengeDaysManager from '@/components/ChallengeDaysManager'
 
 interface SubmissionReview {
   id: string
@@ -22,7 +24,13 @@ interface SubmissionReview {
   }
 }
 
-export default async function AdminPage() {
+interface AdminSearchParams {
+  tab?: string
+}
+
+export default async function AdminPage(props: { searchParams: Promise<AdminSearchParams> }) {
+  const searchParams = await props.searchParams
+  const activeTab = searchParams.tab || 'submissions'
   const user = await getSessionUser()
   
   // Extra security check in Server Component
@@ -49,8 +57,8 @@ export default async function AdminPage() {
 
   if (isMock) {
     challengeDays = [
-      { id: '1', dayNumber: 1, topic: 'Arrays & Hashing' },
-      { id: '2', dayNumber: 2, topic: 'Two Pointers' }
+      { id: '1', dayNumber: 1, topic: 'Arrays & Hashing', description: 'Practice array and hashing basics', difficulty: 'Easy', unlockDay: null },
+      { id: '2', dayNumber: 2, topic: 'Two Pointers', description: 'Solve problems using two pointer techniques', difficulty: 'Medium', unlockDay: 1 }
     ]
     pendingSubmissions = [
       {
@@ -225,14 +233,43 @@ export default async function AdminPage() {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-        {/* Left Columns: Forms to manage content */}
-        <div className="lg:col-span-1 flex flex-col gap-8">
-          <AdminFormSection challengeDays={challengeDays} />
-        </div>
+      {/* Tabs Navigation */}
+      <div className="flex border-b border-zinc-900 font-mono text-xs overflow-x-auto scrollbar-none">
+        <Link
+          href="/admin?tab=submissions"
+          className={`px-4 py-2.5 border-b-2 font-medium transition-all whitespace-nowrap ${
+            activeTab === 'submissions'
+              ? 'border-orange-500 text-white bg-zinc-950/20'
+              : 'border-transparent text-zinc-500 hover:text-zinc-300'
+          }`}
+        >
+          PENDING REVIEWS ({pendingSubmissions.length})
+        </Link>
+        <Link
+          href="/admin?tab=days"
+          className={`px-4 py-2.5 border-b-2 font-medium transition-all whitespace-nowrap ${
+            activeTab === 'days'
+              ? 'border-orange-500 text-white bg-zinc-950/20'
+              : 'border-transparent text-zinc-500 hover:text-zinc-300'
+          }`}
+        >
+          CHALLENGE DAYS ({challengeDays.length})
+        </Link>
+        <Link
+          href="/admin?tab=add-links"
+          className={`px-4 py-2.5 border-b-2 font-medium transition-all whitespace-nowrap ${
+            activeTab === 'add-links'
+              ? 'border-orange-500 text-white bg-zinc-950/20'
+              : 'border-transparent text-zinc-500 hover:text-zinc-300'
+          }`}
+        >
+          ADD RESOURCES & PROBLEMS
+        </Link>
+      </div>
 
-        {/* Right Column: Review pending submissions */}
-        <div className="lg:col-span-2 flex flex-col gap-6">
+      {/* Tab Contents */}
+      {activeTab === 'submissions' && (
+        <div className="flex flex-col gap-6 max-w-4xl">
           <div className="rounded-xl border border-zinc-900 bg-zinc-950/20 p-6">
             <h3 className="text-sm font-semibold font-mono text-white mb-6 flex items-center gap-2">
               <FileText className="h-4.5 w-4.5 text-zinc-400" />
@@ -240,7 +277,7 @@ export default async function AdminPage() {
             </h3>
 
             {pendingSubmissions.length === 0 ? (
-              <p className="text-xs text-zinc-500 italic">No submissions pending review.</p>
+              <p className="text-xs text-zinc-500 italic font-mono">No submissions pending review.</p>
             ) : (
               <div className="space-y-4">
                 {pendingSubmissions.map((sub) => (
@@ -333,7 +370,17 @@ export default async function AdminPage() {
             )}
           </div>
         </div>
-      </div>
+      )}
+
+      {activeTab === 'days' && (
+        <ChallengeDaysManager challengeDays={challengeDays} />
+      )}
+
+      {activeTab === 'add-links' && (
+        <div className="max-w-xl">
+          <AdminFormSection challengeDays={challengeDays} />
+        </div>
+      )}
     </div>
   )
 }

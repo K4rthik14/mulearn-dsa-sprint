@@ -19,6 +19,8 @@ create table if not exists public.challengedays (
   dayNumber integer unique not null,
   topic text not null,
   description text not null,
+  difficulty text check (difficulty in ('Easy', 'Medium', 'Hard')) not null default 'Easy',
+  unlockDay integer,
   createdAt timestamp with time zone default timezone('utc'::text, now()) not null
 );
 
