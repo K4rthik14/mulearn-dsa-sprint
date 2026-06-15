@@ -2,7 +2,7 @@ import { redirect } from 'next/navigation'
 import { getSessionUser } from '@/utils/supabase/user'
 import { createClient } from '@/utils/supabase/server'
 import Link from 'next/link'
-import { ArrowLeft, ExternalLink, Calendar, BookOpen, Code, UploadCloud, CheckCircle2, AlertTriangle, Terminal } from 'lucide-react'
+import { ArrowLeft, ExternalLink, Calendar, BookOpen, Code, UploadCloud, CheckCircle2, AlertTriangle, Terminal, Play, FileText, PlaySquare, File } from 'lucide-react'
 import ChallengeSubmissionForm from '@/components/ChallengeSubmissionForm'
 
 interface SearchParams {
@@ -203,18 +203,40 @@ export default async function ChallengePage(props: { searchParams: Promise<Searc
               <p className="text-xs text-zinc-500 italic">No resources added for this day yet.</p>
             ) : (
               <div className="space-y-3">
-                {resources.map((res) => (
-                  <a
-                    key={res.id}
-                    href={res.url}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="flex items-center justify-between p-3 rounded-lg border border-zinc-900 bg-zinc-950/40 hover:border-zinc-800 transition-all group"
-                  >
-                    <span className="text-xs text-zinc-300 group-hover:text-white transition-colors">{res.title}</span>
-                    <ExternalLink className="h-3.5 w-3.5 text-zinc-500 group-hover:text-zinc-300" />
-                  </a>
-                ))}
+                {resources.map((res) => {
+                  const type = res.type || 'Article'
+                  const getIcon = () => {
+                    switch (type) {
+                      case 'YouTube':
+                        return <Play className="h-4 w-4 text-red-500 shrink-0" />
+                      case 'Article':
+                        return <FileText className="h-4 w-4 text-blue-400 shrink-0" />
+                      case 'Documentation':
+                        return <BookOpen className="h-4 w-4 text-emerald-400 shrink-0" />
+                      case 'PDF':
+                        return <File className="h-4 w-4 text-amber-500 shrink-0" />
+                      case 'Playlist':
+                        return <PlaySquare className="h-4 w-4 text-purple-400 shrink-0" />
+                      default:
+                        return <BookOpen className="h-4 w-4 text-zinc-400 shrink-0" />
+                    }
+                  }
+                  return (
+                    <a
+                      key={res.id}
+                      href={res.url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="flex items-center justify-between p-3 rounded-lg border border-zinc-900 bg-zinc-950/40 hover:border-zinc-800 transition-all group"
+                    >
+                      <div className="flex items-center gap-2.5">
+                        {getIcon()}
+                        <span className="text-xs text-zinc-300 group-hover:text-white transition-colors">{res.title}</span>
+                      </div>
+                      <ExternalLink className="h-3.5 w-3.5 text-zinc-500 group-hover:text-zinc-300" />
+                    </a>
+                  )
+                })}
               </div>
             )}
           </div>

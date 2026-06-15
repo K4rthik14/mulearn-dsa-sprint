@@ -130,6 +130,7 @@ export async function addResource(formData: FormData) {
   const challengeDayId = formData.get('challengeDayId') as string
   const title = formData.get('title') as string
   const url = formData.get('url') as string
+  const type = formData.get('type') as string || 'Article'
 
   if (!challengeDayId || !title || !url) {
     return { error: 'All fields are required' }
@@ -137,7 +138,63 @@ export async function addResource(formData: FormData) {
 
   const { error } = await supabase
     .from('resources')
-    .insert({ challengeDayId, title, url })
+    .insert({ challengeDayId, title, url, type })
+
+  if (error) {
+    return { error: error.message }
+  }
+
+  revalidatePath('/dashboard')
+  revalidatePath('/admin')
+
+  return { success: true }
+}
+
+export async function updateResource(formData: FormData) {
+  const supabase = await createClient()
+  if (!(await checkAdmin(supabase))) {
+    return { error: 'Unauthorized. Admin role required.' }
+  }
+
+  const id = formData.get('id') as string
+  const challengeDayId = formData.get('challengeDayId') as string
+  const title = formData.get('title') as string
+  const url = formData.get('url') as string
+  const type = formData.get('type') as string || 'Article'
+
+  if (!id || !challengeDayId || !title || !url) {
+    return { error: 'All fields are required' }
+  }
+
+  const { error } = await supabase
+    .from('resources')
+    .update({ challengeDayId, title, url, type })
+    .eq('id', id)
+
+  if (error) {
+    return { error: error.message }
+  }
+
+  revalidatePath('/dashboard')
+  revalidatePath('/admin')
+
+  return { success: true }
+}
+
+export async function deleteResource(id: string) {
+  const supabase = await createClient()
+  if (!(await checkAdmin(supabase))) {
+    return { error: 'Unauthorized. Admin role required.' }
+  }
+
+  if (!id) {
+    return { error: 'ID is required' }
+  }
+
+  const { error } = await supabase
+    .from('resources')
+    .delete()
+    .eq('id', id)
 
   if (error) {
     return { error: error.message }

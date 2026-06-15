@@ -33,6 +33,7 @@ create table if not exists public.resources (
   challengeDayId uuid references public.challengedays(id) on delete cascade not null,
   title text not null,
   url text not null,
+  type text check (type in ('YouTube', 'Article', 'Documentation', 'PDF', 'Playlist')) not null default 'Article',
   createdAt timestamp with time zone default timezone('utc'::text, now()) not null
 );
 

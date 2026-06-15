@@ -5,6 +5,7 @@ import { createClient } from '@/utils/supabase/server'
 import { Plus, Shield, Check, X, Calendar, BookOpen, Code, FileText, Terminal, Users, Flame, AlertCircle } from 'lucide-react'
 import AdminFormSection from '@/components/AdminFormSection'
 import ChallengeDaysManager from '@/components/ChallengeDaysManager'
+import ResourcesManager from '@/components/ResourcesManager'
 
 interface SubmissionReview {
   id: string
@@ -40,6 +41,7 @@ export default async function AdminPage(props: { searchParams: Promise<AdminSear
 
   let challengeDays: any[] = []
   let pendingSubmissions: SubmissionReview[] = []
+  let resourcesList: any[] = []
   let isMock = false
   let stats = {
     totalUsers: 0,
@@ -59,6 +61,10 @@ export default async function AdminPage(props: { searchParams: Promise<AdminSear
     challengeDays = [
       { id: '1', dayNumber: 1, topic: 'Arrays & Hashing', description: 'Practice array and hashing basics', difficulty: 'Easy', unlockDay: null },
       { id: '2', dayNumber: 2, topic: 'Two Pointers', description: 'Solve problems using two pointer techniques', difficulty: 'Medium', unlockDay: 1 }
+    ]
+    resourcesList = [
+      { id: 'r1', challengeDayId: '1', title: 'Video: NeetCode DSA Introduction', url: 'https://youtube.com', type: 'YouTube' },
+      { id: 'r2', challengeDayId: '1', title: 'Article: Array Techniques Guide', url: 'https://leetcode.com', type: 'Article' }
     ]
     pendingSubmissions = [
       {
@@ -101,6 +107,13 @@ export default async function AdminPage(props: { searchParams: Promise<AdminSear
         .order('dayNumber', { ascending: true })
 
       challengeDays = days || []
+
+      // Fetch resources
+      const { data: dbResources } = await supabase
+        .from('resources')
+        .select('*')
+
+      resourcesList = dbResources || []
 
       // Fetch pending submissions
       const { data: subs } = await supabase
@@ -256,6 +269,16 @@ export default async function AdminPage(props: { searchParams: Promise<AdminSear
           CHALLENGE DAYS ({challengeDays.length})
         </Link>
         <Link
+          href="/admin?tab=resources"
+          className={`px-4 py-2.5 border-b-2 font-medium transition-all whitespace-nowrap ${
+            activeTab === 'resources'
+              ? 'border-orange-500 text-white bg-zinc-950/20'
+              : 'border-transparent text-zinc-500 hover:text-zinc-300'
+          }`}
+        >
+          LEARNING RESOURCES ({resourcesList.length})
+        </Link>
+        <Link
           href="/admin?tab=add-links"
           className={`px-4 py-2.5 border-b-2 font-medium transition-all whitespace-nowrap ${
             activeTab === 'add-links'
@@ -263,7 +286,7 @@ export default async function AdminPage(props: { searchParams: Promise<AdminSear
               : 'border-transparent text-zinc-500 hover:text-zinc-300'
           }`}
         >
-          ADD RESOURCES & PROBLEMS
+          ADD PROBLEMS
         </Link>
       </div>
 
@@ -299,7 +322,7 @@ export default async function AdminPage(props: { searchParams: Promise<AdminSear
                         <span className="text-xs font-bold text-orange-500 font-mono">
                           DAY {sub.challengedays?.dayNumber < 10 ? `0${sub.challengedays?.dayNumber}` : sub.challengedays?.dayNumber}
                         </span>
-                        <span className="text-[10px] text-zinc-400 block font-mono">
+                        <span className="text-[10px] text-zinc-450 block font-mono">
                           {sub.challengedays?.topic}
                         </span>
                       </div>
@@ -374,6 +397,10 @@ export default async function AdminPage(props: { searchParams: Promise<AdminSear
 
       {activeTab === 'days' && (
         <ChallengeDaysManager challengeDays={challengeDays} />
+      )}
+
+      {activeTab === 'resources' && (
+        <ResourcesManager challengeDays={challengeDays} initialResources={resourcesList} />
       )}
 
       {activeTab === 'add-links' && (
