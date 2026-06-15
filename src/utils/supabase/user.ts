@@ -33,7 +33,7 @@ export async function getSessionUser(): Promise<SessionUser | null> {
       id: user.id,
       email: user.email || null,
       name: dbUser?.name || user.user_metadata?.name || user.user_metadata?.full_name || 'User',
-      isAdmin: dbUser?.isAdmin || false
+      isAdmin: !!(dbUser?.isAdmin || user.app_metadata?.is_admin || user.user_metadata?.is_admin || user.app_metadata?.isAdmin || user.user_metadata?.isAdmin)
     }
   } catch (error) {
     console.error('Error fetching session user:', error)

@@ -14,7 +14,7 @@ async function checkAdmin(supabase: any) {
     .eq('id', user.id)
     .single()
 
-  return !!dbUser?.isAdmin
+  return !!(dbUser?.isAdmin || user?.app_metadata?.is_admin || user?.user_metadata?.is_admin || user?.app_metadata?.isAdmin || user?.user_metadata?.isAdmin)
 }
 
 export async function createChallengeDay(formData: FormData) {

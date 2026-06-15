@@ -1,7 +1,7 @@
 import { redirect } from 'next/navigation'
 import { getSessionUser } from '@/utils/supabase/user'
 import { createClient } from '@/utils/supabase/server'
-import { Plus, Shield, Check, X, Calendar, BookOpen, Code, FileText, Terminal } from 'lucide-react'
+import { Plus, Shield, Check, X, Calendar, BookOpen, Code, FileText, Terminal, Users, Flame, AlertCircle } from 'lucide-react'
 import AdminFormSection from '@/components/AdminFormSection'
 
 interface SubmissionReview {
@@ -33,12 +33,21 @@ export default async function AdminPage() {
   let challengeDays: any[] = []
   let pendingSubmissions: SubmissionReview[] = []
   let isMock = false
+  let stats = {
+    totalUsers: 0,
+    totalSubmissions: 0,
+    activeParticipants: 0,
+    pendingReviews: 0,
+  }
 
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
   const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
 
   if (!supabaseUrl || !supabaseKey || supabaseUrl.includes('placeholder') || supabaseKey.includes('placeholder')) {
     isMock = true
+  }
+
+  if (isMock) {
     challengeDays = [
       { id: '1', dayNumber: 1, topic: 'Arrays & Hashing' },
       { id: '2', dayNumber: 2, topic: 'Two Pointers' }
@@ -67,6 +76,12 @@ export default async function AdminPage() {
         challengedays: { dayNumber: 2, topic: 'Two Pointers' }
       }
     ]
+    stats = {
+      totalUsers: 124,
+      totalSubmissions: 412,
+      activeParticipants: 86,
+      pendingReviews: pendingSubmissions.length,
+    }
   } else {
     try {
       const supabase = await createClient()
@@ -103,9 +118,42 @@ export default async function AdminPage() {
         .order('submittedAt', { ascending: false })
 
       pendingSubmissions = subs as unknown as SubmissionReview[] || []
+
+      // Fetch stats
+      const { count: usersCount } = await supabase
+        .from('users')
+        .select('*', { count: 'exact', head: true })
+      
+      const { count: subsCount } = await supabase
+        .from('submissions')
+        .select('*', { count: 'exact', head: true })
+
+      const { data: activeSubs } = await supabase
+        .from('submissions')
+        .select('userId')
+      
+      const activeCount = activeSubs ? new Set(activeSubs.map((s: any) => s.userId)).size : 0
+
+      const { count: pendingCount } = await supabase
+        .from('submissions')
+        .select('*', { count: 'exact', head: true })
+        .eq('status', 'pending')
+
+      stats = {
+        totalUsers: usersCount || 0,
+        totalSubmissions: subsCount || 0,
+        activeParticipants: activeCount || 0,
+        pendingReviews: pendingCount || 0,
+      }
     } catch (err) {
       console.error('Admin page error:', err)
       isMock = true
+      stats = {
+        totalUsers: 124,
+        totalSubmissions: 412,
+        activeParticipants: 86,
+        pendingReviews: pendingSubmissions.length || 2,
+      }
     }
   }
 
@@ -122,14 +170,59 @@ export default async function AdminPage() {
       )}
 
       {/* Header */}
-      <div>
-        <h1 className="text-3xl font-extrabold tracking-tight text-white font-mono flex items-center gap-3">
-          <Shield className="h-8 w-8 text-emerald-500" />
-          Admin Panel
-        </h1>
-        <p className="text-sm text-zinc-400 mt-1">
-          Manage challenges, upload curriculums, and review community solution uploads.
-        </p>
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
+        <div>
+          <h1 className="text-3xl font-extrabold tracking-tight text-white font-mono flex items-center gap-3">
+            <Shield className="h-8 w-8 text-emerald-500" />
+            Admin Panel
+          </h1>
+          <p className="text-sm text-zinc-400 mt-1">
+            Manage challenges, upload curriculums, and review community solution uploads.
+          </p>
+        </div>
+      </div>
+
+      {/* Stats Cards */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+        <div className="rounded-xl border border-zinc-800 bg-zinc-950/50 p-6 glow-border">
+          <div className="flex items-center justify-between text-zinc-500">
+            <span className="text-xs font-mono font-medium">TOTAL USERS</span>
+            <Users className="h-4 w-4 text-emerald-500" />
+          </div>
+          <div className="mt-2 flex items-baseline gap-2">
+            <span className="text-3xl font-bold tracking-tight text-white font-mono">{stats.totalUsers}</span>
+          </div>
+        </div>
+
+        <div className="rounded-xl border border-zinc-800 bg-zinc-950/50 p-6 glow-border">
+          <div className="flex items-center justify-between text-zinc-500">
+            <span className="text-xs font-mono font-medium">TOTAL SUBMISSIONS</span>
+            <FileText className="h-4 w-4 text-blue-500" />
+          </div>
+          <div className="mt-2 flex items-baseline gap-2">
+            <span className="text-3xl font-bold tracking-tight text-white font-mono">{stats.totalSubmissions}</span>
+          </div>
+        </div>
+
+        <div className="rounded-xl border border-zinc-800 bg-zinc-950/50 p-6 glow-border">
+          <div className="flex items-center justify-between text-zinc-500">
+            <span className="text-xs font-mono font-medium">ACTIVE PARTICIPANTS</span>
+            <Flame className="h-4 w-4 text-orange-500" />
+          </div>
+          <div className="mt-2 flex items-baseline gap-2">
+            <span className="text-3xl font-bold tracking-tight text-white font-mono">{stats.activeParticipants}</span>
+          </div>
+        </div>
+
+        <div className="rounded-xl border border-zinc-800 bg-zinc-950/50 p-6 glow-border">
+          <div className="flex items-center justify-between text-zinc-500">
+            <span className="text-xs font-mono font-medium">PENDING REVIEWS</span>
+            <AlertCircle className="h-4 w-4 text-amber-500" />
+          </div>
+          <div className="mt-2 flex items-baseline gap-2">
+            <span className="text-3xl font-bold tracking-tight text-white font-mono">{stats.pendingReviews}</span>
+          </div>
+        </div>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
