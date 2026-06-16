@@ -6,6 +6,8 @@ import Link from 'next/link'
 import { Flame, Terminal } from 'lucide-react'
 
 export default function LoginPage() {
+  const [email, setEmail] = useState('')
+  const [password, setPassword] = useState('')
   const [error, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
 
@@ -21,6 +23,10 @@ export default function LoginPage() {
       setError(result.error)
       setLoading(false)
     }
+  }
+
+  const handleAutofillAdmin = () => {
+    setEmail('codewithkarthii@gmail.com')
   }
 
   return (
@@ -53,6 +59,8 @@ export default function LoginPage() {
                   autoComplete="email"
                   required
                   placeholder="name@domain.com"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
                   className="block w-full rounded-md border border-zinc-800 bg-black px-3 py-2 text-sm text-white placeholder-zinc-600 focus:border-zinc-500 focus:outline-none focus:ring-1 focus:ring-zinc-500 font-mono"
                 />
               </div>
@@ -72,6 +80,8 @@ export default function LoginPage() {
                   autoComplete="current-password"
                   required
                   placeholder="••••••••"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
                   className="block w-full rounded-md border border-zinc-800 bg-black px-3 py-2 text-sm text-white placeholder-zinc-600 focus:border-zinc-500 focus:outline-none focus:ring-1 focus:ring-zinc-500 font-mono"
                 />
               </div>
@@ -91,6 +101,23 @@ export default function LoginPage() {
                 className="flex w-full justify-center rounded-md bg-white px-3 py-2 text-sm font-semibold text-black hover:bg-zinc-200 transition-all font-mono disabled:opacity-50 cursor-pointer"
               >
                 {loading ? 'Authenticating...' : 'Sign In'}
+              </button>
+            </div>
+
+            <div className="relative flex py-1 items-center">
+              <div className="flex-grow border-t border-zinc-800"></div>
+              <span className="flex-shrink mx-4 text-zinc-600 font-mono text-[10px]">OR</span>
+              <div className="flex-grow border-t border-zinc-800"></div>
+            </div>
+
+            <div>
+              <button
+                type="button"
+                onClick={handleAutofillAdmin}
+                className="flex w-full justify-center items-center gap-2 rounded-md border border-orange-500/20 bg-orange-950/10 px-3 py-2 text-xs font-mono font-semibold text-orange-400 hover:bg-orange-950/25 transition-all cursor-pointer"
+              >
+                <Flame className="h-3.5 w-3.5 text-orange-500 fill-orange-500/20" />
+                Autofill Admin Email
               </button>
             </div>
           </form>
