@@ -7,27 +7,44 @@ create table if not exists public.users (
   name text not null,
   email text not null,
   isAdmin boolean not null default false,
+  "isBanned" boolean not null default false,
   createdAt timestamp with time zone default timezone('utc'::text, now()) not null
 );
 
 -- Enable RLS on users
 alter table public.users enable row level security;
 
--- 2. ChallengeDays Table
+-- 2. Sprints Table
+create table if not exists public.sprints (
+  id uuid default gen_random_uuid() primary key,
+  name text not null,
+  description text not null,
+  slug text unique not null,
+  "durationDays" integer not null default 21,
+  createdAt timestamp with time zone default timezone('utc'::text, now()) not null
+);
+
+-- Enable RLS on sprints
+alter table public.sprints enable row level security;
+
+-- 3. ChallengeDays Table
 create table if not exists public.challengedays (
   id uuid default gen_random_uuid() primary key,
-  dayNumber integer unique not null,
+  "sprintId" uuid references public.sprints(id) on delete cascade not null,
+  dayNumber integer not null,
   topic text not null,
   description text not null,
   difficulty text check (difficulty in ('Easy', 'Medium', 'Hard')) not null default 'Easy',
   unlockDay integer,
-  createdAt timestamp with time zone default timezone('utc'::text, now()) not null
+  createdAt timestamp with time zone default timezone('utc'::text, now()) not null,
+  -- Ensure day numbers are unique within a single sprint
+  unique ("sprintId", dayNumber)
 );
 
 -- Enable RLS on challengedays
 alter table public.challengedays enable row level security;
 
--- 3. Resources Table
+-- 4. Resources Table
 create table if not exists public.resources (
   id uuid default gen_random_uuid() primary key,
   challengeDayId uuid references public.challengedays(id) on delete cascade not null,
@@ -40,7 +57,7 @@ create table if not exists public.resources (
 -- Enable RLS on resources
 alter table public.resources enable row level security;
 
--- 4. Problems Table
+-- 5. Problems Table
 create table if not exists public.problems (
   id uuid default gen_random_uuid() primary key,
   challengeDayId uuid references public.challengedays(id) on delete cascade not null,
@@ -56,14 +73,14 @@ create table if not exists public.problems (
 -- Enable RLS on problems
 alter table public.problems enable row level security;
 
--- 5. Submissions Table
+-- 6. Submissions Table
 create table if not exists public.submissions (
   id uuid default gen_random_uuid() primary key,
   userId uuid references public.users(id) on delete cascade not null,
   challengeDayId uuid references public.challengedays(id) on delete cascade not null,
   screenshotUrl text,
   profileLink text,
-  status text check (status in ('pending', 'approved', 'rejected')) default 'pending' not null,
+  status text check (status in ('pending', 'approved', 'rejected')) default 'approved' not null,
   rejectionReason text,
   submittedAt timestamp with time zone default timezone('utc'::text, now()) not null,
   -- Ensure a user can submit only once per challenge day
@@ -73,7 +90,7 @@ create table if not exists public.submissions (
 -- Enable RLS on submissions
 alter table public.submissions enable row level security;
 
--- 6. Leaderboard Table
+-- 7. Leaderboard Table
 create table if not exists public.leaderboard (
   userId uuid references public.users(id) on delete cascade primary key,
   score integer default 0 not null,
@@ -84,6 +101,45 @@ create table if not exists public.leaderboard (
 
 -- Enable RLS on leaderboard
 alter table public.leaderboard enable row level security;
+
+-- 8. User Sprints Enrollment Table
+create table if not exists public.user_sprints (
+  id uuid default gen_random_uuid() primary key,
+  "userId" uuid references public.users(id) on delete cascade not null,
+  "sprintId" uuid references public.sprints(id) on delete cascade not null,
+  "enrolledAt" timestamp with time zone default timezone('utc'::text, now()) not null,
+  "completedAt" timestamp with time zone,
+  unique ("userId", "sprintId")
+);
+
+-- Enable RLS on user_sprints
+alter table public.user_sprints enable row level security;
+
+-- 9. Contests Table
+create table if not exists public.contests (
+  id uuid default gen_random_uuid() primary key,
+  name text not null,
+  startTime timestamp with time zone not null,
+  endTime timestamp with time zone not null,
+  contestLink text not null,
+  contestType text check (contestType in ('Codeforces', 'HackerRank', 'External')) not null default 'External',
+  createdAt timestamp with time zone default timezone('utc'::text, now()) not null
+);
+
+-- Enable RLS on contests
+alter table public.contests enable row level security;
+
+-- 10. Announcements Table
+create table if not exists public.announcements (
+  id uuid default gen_random_uuid() primary key,
+  title text not null,
+  content text not null,
+  priority text check (priority in ('Info', 'Warning', 'Important')) not null default 'Info',
+  createdAt timestamp with time zone default timezone('utc'::text, now()) not null
+);
+
+-- Enable RLS on announcements
+alter table public.announcements enable row level security;
 
 
 ------------------
@@ -96,6 +152,18 @@ create policy "Public users are readable by everyone" on public.users
 
 create policy "Users can update their own profile" on public.users
   for update using (auth.uid() = id);
+
+-- Sprints policies
+create policy "Sprints are readable by everyone" on public.sprints
+  for select using (true);
+
+create policy "Sprints can be managed by admins" on public.sprints
+  for all using (
+    exists (
+      select 1 from public.users
+      where users.id = auth.uid() and users.isAdmin = true
+    )
+  );
 
 -- ChallengeDays policies
 create policy "Challenge days are readable by everyone" on public.challengedays
@@ -160,6 +228,51 @@ create policy "Leaderboard is readable by everyone" on public.leaderboard
 
 create policy "Leaderboard is managed by system triggers/service role" on public.leaderboard
   for all using (true);
+
+-- User Sprints policies
+create policy "User sprints are readable by everyone" on public.user_sprints
+  for select using (true);
+
+-- Allow users to enroll in sprints
+create policy "Users can enroll in sprints" on public.user_sprints
+  for insert with check (auth.uid() = "userId");
+
+-- Allow users to update their own sprint enrollment
+create policy "Users can update their own sprint enrollment status" on public.user_sprints
+  for update using (auth.uid() = "userId");
+
+-- Allow admins to manage all user sprints
+create policy "Admins can manage user sprints" on public.user_sprints
+  for all using (
+    exists (
+      select 1 from public.users
+      where users.id = auth.uid() and users.isAdmin = true
+    )
+  );
+
+-- Contests policies
+create policy "Contests are readable by everyone" on public.contests
+  for select using (true);
+
+create policy "Contests are manageable by admins" on public.contests
+  for all using (
+    exists (
+      select 1 from public.users
+      where users.id = auth.uid() and users.isAdmin = true
+    )
+  );
+
+-- Announcements policies
+create policy "Announcements are readable by everyone" on public.announcements
+  for select using (true);
+
+create policy "Announcements are manageable by admins" on public.announcements
+  for all using (
+    exists (
+      select 1 from public.users
+      where users.id = auth.uid() and users.isAdmin = true
+    )
+  );
 
 
 ----------------------------
@@ -264,54 +377,3 @@ drop trigger if exists on_submission_approved on public.submissions;
 create trigger on_submission_approved
   after insert or update of status on public.submissions
   for each row execute procedure public.handle_new_submission();
-
--- Add isBanned column to users table
-alter table public.users add column if not exists "isBanned" boolean not null default false;
-
--- 7. Contests Table
-create table if not exists public.contests (
-  id uuid default gen_random_uuid() primary key,
-  name text not null,
-  startTime timestamp with time zone not null,
-  endTime timestamp with time zone not null,
-  contestLink text not null,
-  contestType text check (contestType in ('Codeforces', 'HackerRank', 'External')) not null default 'External',
-  createdAt timestamp with time zone default timezone('utc'::text, now()) not null
-);
-
--- Enable RLS on contests
-alter table public.contests enable row level security;
-
-create policy "Contests are readable by everyone" on public.contests
-  for select using (true);
-
-create policy "Contests are manageable by admins" on public.contests
-  for all using (
-    exists (
-      select 1 from public.users
-      where users.id = auth.uid() and users.isAdmin = true
-    )
-  );
-
--- 8. Announcements Table
-create table if not exists public.announcements (
-  id uuid default gen_random_uuid() primary key,
-  title text not null,
-  content text not null,
-  priority text check (priority in ('Info', 'Warning', 'Important')) not null default 'Info',
-  createdAt timestamp with time zone default timezone('utc'::text, now()) not null
-);
-
--- Enable RLS on announcements
-alter table public.announcements enable row level security;
-
-create policy "Announcements are readable by everyone" on public.announcements
-  for select using (true);
-
-create policy "Announcements are manageable by admins" on public.announcements
-  for all using (
-    exists (
-      select 1 from public.users
-      where users.id = auth.uid() and users.isAdmin = true
-    )
-  );

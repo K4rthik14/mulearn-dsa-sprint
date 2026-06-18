@@ -4,6 +4,13 @@ import { useState } from 'react'
 import { createChallengeDay, updateChallengeDay, deleteChallengeDay } from '@/app/actions/admin'
 import { Plus, Search, Edit2, Trash2, X, AlertTriangle, Terminal, HelpCircle } from 'lucide-react'
 
+interface Sprint {
+  id: string
+  name: string
+  slug: string
+  durationDays: number
+}
+
 interface ChallengeDay {
   id: string
   dayNumber: number
@@ -11,13 +18,16 @@ interface ChallengeDay {
   description: string
   difficulty?: 'Easy' | 'Medium' | 'Hard'
   unlockDay?: number | null
+  sprintId?: string
+  sprintName?: string
 }
 
 interface ChallengeDaysManagerProps {
   challengeDays: ChallengeDay[]
+  sprints: Sprint[]
 }
 
-export default function ChallengeDaysManager({ challengeDays }: ChallengeDaysManagerProps) {
+export default function ChallengeDaysManager({ challengeDays, sprints }: ChallengeDaysManagerProps) {
   const [searchTerm, setSearchTerm] = useState('')
   const [isCreateOpen, setIsCreateOpen] = useState(false)
   const [isEditOpen, setIsEditOpen] = useState(false)
@@ -34,8 +44,17 @@ export default function ChallengeDaysManager({ challengeDays }: ChallengeDaysMan
   const filteredDays = challengeDays.filter(day => 
     day.topic.toLowerCase().includes(searchTerm.toLowerCase()) ||
     day.description.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    (day.sprintName && day.sprintName.toLowerCase().includes(searchTerm.toLowerCase())) ||
     `day ${day.dayNumber}`.includes(searchTerm.toLowerCase())
-  ).sort((a, b) => a.dayNumber - b.dayNumber)
+  ).sort((a, b) => {
+    // Sort by sprintName first, then by dayNumber
+    const sprintA = a.sprintName || ''
+    const sprintB = b.sprintName || ''
+    if (sprintA !== sprintB) {
+      return sprintA.localeCompare(sprintB)
+    }
+    return a.dayNumber - b.dayNumber
+  })
 
   const handleCreateSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault()
@@ -52,7 +71,6 @@ export default function ChallengeDaysManager({ challengeDays }: ChallengeDaysMan
     } else {
       setSuccess('Challenge day created successfully!')
       setIsCreateOpen(false)
-      // Reset success/error messages after a delay
       setTimeout(() => setSuccess(null), 3000)
     }
   }
@@ -115,9 +133,6 @@ export default function ChallengeDaysManager({ challengeDays }: ChallengeDaysMan
           <Terminal className="h-4 w-4 text-red-500 mt-0.5 shrink-0" />
           <div className="text-xs font-mono text-red-400">
             <span className="font-bold">Error:</span> {error}
-            <div className="mt-2 text-[10px] text-zinc-500">
-              Note: If this is a database error, please check if your Supabase schema matches the latest `supabase/schema.sql` (specifically the new `difficulty` and `unlockDay` columns on `challengedays`).
-            </div>
           </div>
         </div>
       )}
@@ -140,10 +155,10 @@ export default function ChallengeDaysManager({ challengeDays }: ChallengeDaysMan
           </div>
           <input
             type="text"
-            placeholder="Search topic or description..."
+            placeholder="Search topic, description, or sprint..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            className="block w-full rounded-md border border-zinc-850 bg-black/60 pl-10 pr-3 py-2 text-xs text-white placeholder-zinc-500 focus:border-zinc-500 focus:outline-none focus:ring-1 focus:ring-zinc-500 font-mono transition-all"
+            className="block w-full rounded-md border border-zinc-900 bg-black/60 pl-10 pr-3 py-2 text-xs text-white placeholder-zinc-500 focus:border-zinc-500 focus:outline-none focus:ring-1 focus:ring-zinc-500 font-mono transition-all"
           />
         </div>
 
@@ -167,6 +182,9 @@ export default function ChallengeDaysManager({ challengeDays }: ChallengeDaysMan
             <thead className="bg-zinc-950/80">
               <tr>
                 <th scope="col" className="px-6 py-3 text-left text-xs font-mono font-semibold text-zinc-500 uppercase tracking-wider">
+                  Sprint Track
+                </th>
+                <th scope="col" className="px-6 py-3 text-left text-xs font-mono font-semibold text-zinc-500 uppercase tracking-wider">
                   Day
                 </th>
                 <th scope="col" className="px-6 py-3 text-left text-xs font-mono font-semibold text-zinc-500 uppercase tracking-wider">
@@ -186,7 +204,7 @@ export default function ChallengeDaysManager({ challengeDays }: ChallengeDaysMan
             <tbody className="divide-y divide-zinc-900 bg-zinc-950/20">
               {filteredDays.length === 0 ? (
                 <tr>
-                  <td colSpan={5} className="px-6 py-10 text-center text-xs text-zinc-500 italic font-mono">
+                  <td colSpan={6} className="px-6 py-10 text-center text-xs text-zinc-500 italic font-mono">
                     No challenge days found.
                   </td>
                 </tr>
@@ -195,40 +213,43 @@ export default function ChallengeDaysManager({ challengeDays }: ChallengeDaysMan
                   const difficulty = day.difficulty || 'Easy'
                   return (
                     <tr key={day.id} className="hover:bg-zinc-950/40 transition-colors">
+                      <td className="whitespace-nowrap px-6 py-4 text-xs font-semibold font-mono text-zinc-400">
+                        {day.sprintName || 'Unknown Sprint'}
+                      </td>
                       <td className="whitespace-nowrap px-6 py-4 text-sm font-bold font-mono text-orange-500">
                         Day {day.dayNumber < 10 ? `0${day.dayNumber}` : day.dayNumber}
                       </td>
                       <td className="px-6 py-4">
                         <div className="text-sm font-semibold text-white font-mono">{day.topic}</div>
-                        <div className="text-xs text-zinc-400 mt-1 max-w-md line-clamp-2">{day.description}</div>
+                        <div className="text-xs text-zinc-450 mt-1 max-w-md line-clamp-2">{day.description}</div>
                       </td>
                       <td className="whitespace-nowrap px-6 py-4">
                         <span className={`inline-flex items-center rounded px-2.5 py-0.5 text-[10px] font-mono font-medium border ${
                           difficulty === 'Easy' ? 'border-emerald-500/20 bg-emerald-500/10 text-emerald-400' :
-                          difficulty === 'Medium' ? 'border-amber-500/20 bg-amber-500/10 text-amber-400' :
+                          difficulty === 'Medium' ? 'border-amber-500/20 bg-amber-500/10 text-amber-450' :
                           'border-red-500/20 bg-red-500/10 text-red-400'
                         }`}>
                           {difficulty}
                         </span>
                       </td>
-                      <td className="whitespace-nowrap px-6 py-4 text-xs font-mono text-zinc-300">
+                      <td className="whitespace-nowrap px-6 py-4 text-xs font-mono text-zinc-350">
                         {day.unlockDay ? (
                           <span>Requires Day {day.unlockDay}</span>
                         ) : (
-                          <span className="text-zinc-500">Sequential (Default)</span>
+                          <span className="text-zinc-650">Sequential (Default)</span>
                         )}
                       </td>
                       <td className="whitespace-nowrap px-6 py-4 text-right text-xs font-medium space-x-2">
                         <button
                           onClick={() => openEditModal(day)}
-                          className="inline-flex items-center gap-1 rounded bg-zinc-900 border border-zinc-800 hover:border-zinc-700 px-2 py-1 text-[11px] font-mono text-zinc-300 hover:text-white transition-all cursor-pointer"
+                          className="inline-flex items-center gap-1 rounded bg-zinc-900 border border-zinc-850 hover:border-zinc-750 px-2 py-1 text-[11px] font-mono text-zinc-300 hover:text-white transition-all cursor-pointer"
                         >
                           <Edit2 className="h-3 w-3" />
                           Edit
                         </button>
                         <button
                           onClick={() => openDeleteModal(day)}
-                          className="inline-flex items-center gap-1 rounded bg-zinc-900 border border-zinc-800 hover:bg-red-950/20 hover:border-red-900 px-2 py-1 text-[11px] font-mono text-zinc-400 hover:text-red-400 transition-all cursor-pointer"
+                          className="inline-flex items-center gap-1 rounded bg-zinc-900 border border-zinc-850 hover:bg-red-950/20 hover:border-red-900 px-2 py-1 text-[11px] font-mono text-zinc-400 hover:text-red-400 transition-all cursor-pointer"
                         >
                           <Trash2 className="h-3 w-3" />
                           Delete
@@ -243,31 +264,14 @@ export default function ChallengeDaysManager({ challengeDays }: ChallengeDaysMan
         </div>
       </div>
 
-      {/* SQL Migration Help Message */}
-      <div className="rounded-xl border border-zinc-850 bg-zinc-950/50 p-4">
-        <h4 className="text-xs font-bold font-mono text-zinc-300 mb-2 flex items-center gap-1.5">
-          <HelpCircle className="h-4 w-4 text-zinc-500" />
-          DATABASE SCHEMA MIGRATION GUIDE
-        </h4>
-        <p className="text-[11px] text-zinc-400 leading-relaxed">
-          If you are connecting this system to a live Supabase instance and haven&apos;t run the latest migration, please execute the following SQL script in your Supabase SQL Editor to support Difficulty and Unlock Days:
-        </p>
-        <pre className="mt-2.5 p-3 rounded bg-black/80 border border-zinc-900 text-[9px] text-zinc-400 font-mono overflow-x-auto select-all">
-{`ALTER TABLE public.challengedays ADD COLUMN IF NOT EXISTS difficulty text check (difficulty in ('Easy', 'Medium', 'Hard')) not null default 'Easy';
-ALTER TABLE public.challengedays ADD COLUMN IF NOT EXISTS "unlockDay" integer;`}
-        </pre>
-      </div>
-
       {/* -------------------- CREATE DAY MODAL -------------------- */}
       {isCreateOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-          {/* Backdrop */}
           <div 
             className="absolute inset-0 bg-black/80 backdrop-blur-sm"
             onClick={() => setIsCreateOpen(false)}
           />
           
-          {/* Modal Container */}
           <div className="relative w-full max-w-md rounded-xl border border-zinc-850 bg-zinc-950 p-6 shadow-2xl z-10">
             <div className="flex items-center justify-between border-b border-zinc-900 pb-3 mb-4">
               <h3 className="text-sm font-bold font-mono text-white flex items-center gap-2">
@@ -283,6 +287,19 @@ ALTER TABLE public.challengedays ADD COLUMN IF NOT EXISTS "unlockDay" integer;`}
             </div>
 
             <form onSubmit={handleCreateSubmit} className="space-y-4">
+              <div>
+                <label className="block text-[10px] font-mono text-zinc-500">SPRINT TRACK *</label>
+                <select
+                  name="sprintId"
+                  required
+                  className="mt-1 block w-full rounded border border-zinc-850 bg-black px-3 py-1.5 text-xs text-white focus:border-zinc-500 focus:outline-none focus:ring-1 focus:ring-zinc-500 font-mono"
+                >
+                  {sprints.map(s => (
+                    <option key={s.id} value={s.id}>{s.name}</option>
+                  ))}
+                </select>
+              </div>
+
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="block text-[10px] font-mono text-zinc-500">DAY NUMBER *</label>
@@ -290,7 +307,7 @@ ALTER TABLE public.challengedays ADD COLUMN IF NOT EXISTS "unlockDay" integer;`}
                     type="number"
                     name="dayNumber"
                     min="1"
-                    max="21"
+                    max="100"
                     required
                     className="mt-1 block w-full rounded border border-zinc-850 bg-black px-3 py-1.5 text-xs text-white placeholder-zinc-700 focus:border-zinc-500 focus:outline-none focus:ring-1 focus:ring-zinc-500 font-mono"
                     placeholder="e.g. 3"
@@ -338,7 +355,7 @@ ALTER TABLE public.challengedays ADD COLUMN IF NOT EXISTS "unlockDay" integer;`}
                   type="number"
                   name="unlockDay"
                   min="1"
-                  max="21"
+                  max="100"
                   className="mt-1 block w-full rounded border border-zinc-850 bg-black px-3 py-1.5 text-xs text-white placeholder-zinc-750 focus:border-zinc-500 focus:outline-none focus:ring-1 focus:ring-zinc-500 font-mono"
                   placeholder="Optional day number (e.g. Day 1)"
                 />
@@ -371,7 +388,6 @@ ALTER TABLE public.challengedays ADD COLUMN IF NOT EXISTS "unlockDay" integer;`}
       {/* -------------------- EDIT DAY MODAL -------------------- */}
       {isEditOpen && activeDay && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-          {/* Backdrop */}
           <div 
             className="absolute inset-0 bg-black/80 backdrop-blur-sm"
             onClick={() => {
@@ -380,7 +396,6 @@ ALTER TABLE public.challengedays ADD COLUMN IF NOT EXISTS "unlockDay" integer;`}
             }}
           />
           
-          {/* Modal Container */}
           <div className="relative w-full max-w-md rounded-xl border border-zinc-850 bg-zinc-950 p-6 shadow-2xl z-10">
             <div className="flex items-center justify-between border-b border-zinc-900 pb-3 mb-4">
               <h3 className="text-sm font-bold font-mono text-white flex items-center gap-2">
@@ -401,6 +416,20 @@ ALTER TABLE public.challengedays ADD COLUMN IF NOT EXISTS "unlockDay" integer;`}
             <form onSubmit={handleEditSubmit} className="space-y-4">
               <input type="hidden" name="id" value={activeDay.id} />
               
+              <div>
+                <label className="block text-[10px] font-mono text-zinc-500">SPRINT TRACK *</label>
+                <select
+                  name="sprintId"
+                  required
+                  defaultValue={activeDay.sprintId}
+                  className="mt-1 block w-full rounded border border-zinc-850 bg-black px-3 py-1.5 text-xs text-white focus:border-zinc-500 focus:outline-none focus:ring-1 focus:ring-zinc-500 font-mono"
+                >
+                  {sprints.map(s => (
+                    <option key={s.id} value={s.id}>{s.name}</option>
+                  ))}
+                </select>
+              </div>
+
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="block text-[10px] font-mono text-zinc-500">DAY NUMBER *</label>
@@ -408,7 +437,7 @@ ALTER TABLE public.challengedays ADD COLUMN IF NOT EXISTS "unlockDay" integer;`}
                     type="number"
                     name="dayNumber"
                     min="1"
-                    max="21"
+                    max="100"
                     required
                     defaultValue={activeDay.dayNumber}
                     className="mt-1 block w-full rounded border border-zinc-850 bg-black px-3 py-1.5 text-xs text-white focus:border-zinc-500 focus:outline-none focus:ring-1 focus:ring-zinc-500 font-mono"
@@ -457,7 +486,7 @@ ALTER TABLE public.challengedays ADD COLUMN IF NOT EXISTS "unlockDay" integer;`}
                   type="number"
                   name="unlockDay"
                   min="1"
-                  max="21"
+                  max="100"
                   defaultValue={activeDay.unlockDay || ''}
                   className="mt-1 block w-full rounded border border-zinc-850 bg-black px-3 py-1.5 text-xs text-white placeholder-zinc-750 focus:border-zinc-500 focus:outline-none focus:ring-1 focus:ring-zinc-500 font-mono"
                   placeholder="Optional day number (e.g. Day 1)"
@@ -494,7 +523,6 @@ ALTER TABLE public.challengedays ADD COLUMN IF NOT EXISTS "unlockDay" integer;`}
       {/* -------------------- DELETE DAY CONFIRMATION MODAL -------------------- */}
       {isDeleteOpen && activeDay && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-          {/* Backdrop */}
           <div 
             className="absolute inset-0 bg-black/80 backdrop-blur-sm"
             onClick={() => {
@@ -503,7 +531,6 @@ ALTER TABLE public.challengedays ADD COLUMN IF NOT EXISTS "unlockDay" integer;`}
             }}
           />
           
-          {/* Modal Container */}
           <div className="relative w-full max-w-sm rounded-xl border border-red-500/20 bg-zinc-950 p-6 shadow-2xl z-10">
             <div className="flex items-start gap-3 mb-4">
               <div className="p-2 rounded bg-red-500/10 border border-red-500/20 text-red-500 shrink-0">

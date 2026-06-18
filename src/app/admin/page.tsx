@@ -64,6 +64,7 @@ export default async function AdminPage(props: { searchParams: Promise<AdminSear
   let participantsList: any[] = []
   let contestsList: any[] = []
   let announcementsList: any[] = []
+  let sprintsList: any[] = []
   
   let isMock = false
   
@@ -95,9 +96,14 @@ export default async function AdminPage(props: { searchParams: Promise<AdminSear
   }
 
   if (isMock) {
+    sprintsList = [
+      { id: 'mock-sprint-1', name: '21-Day DSA Habit Builder', slug: 'dsa-habit-21', durationDays: 21 },
+      { id: 'mock-sprint-2', name: 'Blind 75 Interview Prep', slug: 'blind-75', durationDays: 15 },
+      { id: 'mock-sprint-3', name: '7-Day DP Intensive', slug: 'dp-intensive-7', durationDays: 7 }
+    ]
     challengeDays = [
-      { id: '1', dayNumber: 1, topic: 'Arrays & Hashing', description: 'Practice array and hashing basics', difficulty: 'Easy', unlockDay: null },
-      { id: '2', dayNumber: 2, topic: 'Two Pointers', description: 'Solve problems using two pointer techniques', difficulty: 'Medium', unlockDay: 1 }
+      { id: '1', dayNumber: 1, topic: 'Arrays & Hashing', description: 'Practice array and hashing basics', difficulty: 'Easy', unlockDay: null, sprintId: 'mock-sprint-1', sprintName: '21-Day DSA Habit Builder' },
+      { id: '2', dayNumber: 2, topic: 'Two Pointers', description: 'Solve problems using two pointer techniques', difficulty: 'Medium', unlockDay: 1, sprintId: 'mock-sprint-1', sprintName: '21-Day DSA Habit Builder' }
     ]
     resourcesList = [
       { id: 'r1', challengeDayId: '1', title: 'Video: NeetCode DSA Introduction', url: 'https://youtube.com', type: 'YouTube' },
@@ -184,11 +190,12 @@ export default async function AdminPage(props: { searchParams: Promise<AdminSear
         announcementsResult,
         usersResult,
         subCountsResult,
-        allDbSubsResult
+        allDbSubsResult,
+        sprintsResult
       ] = await Promise.all([
         supabase
           .from('challengedays')
-          .select('*')
+          .select('*, sprints(name, slug)')
           .order('dayNumber', { ascending: true }),
 
         supabase
@@ -253,10 +260,19 @@ export default async function AdminPage(props: { searchParams: Promise<AdminSear
 
         supabase
           .from('submissions')
-          .select('userId, challengeDayId, status, challengedays(dayNumber, topic)')
+          .select('userId, challengeDayId, status, challengedays(dayNumber, topic)'),
+
+        supabase
+          .from('sprints')
+          .select('*')
+          .order('createdAt', { ascending: true })
       ])
 
-      challengeDays = daysResult.data || []
+      sprintsList = sprintsResult.data || []
+      challengeDays = (daysResult.data || []).map((day: any) => ({
+        ...day,
+        sprintName: day.sprints?.name || 'Unknown Sprint'
+      }))
       resourcesList = resourcesResult.data || []
       problemsList = problemsResult.data || []
       pendingSubmissions = subsResult.data as unknown as SubmissionReview[] || []
@@ -588,7 +604,7 @@ export default async function AdminPage(props: { searchParams: Promise<AdminSear
       )}
 
       {activeTab === 'days' && (
-        <ChallengeDaysManager challengeDays={challengeDays} />
+        <ChallengeDaysManager challengeDays={challengeDays} sprints={sprintsList} />
       )}
 
       {activeTab === 'resources' && (

@@ -40,6 +40,7 @@ export async function createChallengeDay(formData: FormData) {
     return { error: 'Unauthorized. Admin role required.' }
   }
 
+  const sprintId = formData.get('sprintId') as string
   const dayNumber = parseInt(formData.get('dayNumber') as string)
   const topic = formData.get('topic') as string
   const description = formData.get('description') as string
@@ -47,13 +48,14 @@ export async function createChallengeDay(formData: FormData) {
   const unlockDayVal = formData.get('unlockDay') as string
   const unlockDay = unlockDayVal ? parseInt(unlockDayVal) : null
 
-  if (isNaN(dayNumber) || !topic || !description) {
-    return { error: 'All fields are required and Day Number must be a number' }
+  if (!sprintId || isNaN(dayNumber) || !topic || !description) {
+    return { error: 'All fields are required (including Sprint) and Day Number must be a number' }
   }
 
   const { error } = await supabase
     .from('challengedays')
     .insert({ 
+      sprintId,
       dayNumber, 
       topic, 
       description,
@@ -63,7 +65,7 @@ export async function createChallengeDay(formData: FormData) {
 
   if (error) {
     if (error.code === '23505') {
-      return { error: `Day ${dayNumber} already exists!` }
+      return { error: `Day ${dayNumber} already exists in this sprint!` }
     }
     return { error: error.message }
   }
@@ -81,6 +83,7 @@ export async function updateChallengeDay(formData: FormData) {
   }
 
   const id = formData.get('id') as string
+  const sprintId = formData.get('sprintId') as string
   const dayNumber = parseInt(formData.get('dayNumber') as string)
   const topic = formData.get('topic') as string
   const description = formData.get('description') as string
@@ -88,13 +91,14 @@ export async function updateChallengeDay(formData: FormData) {
   const unlockDayVal = formData.get('unlockDay') as string
   const unlockDay = unlockDayVal ? parseInt(unlockDayVal) : null
 
-  if (!id || isNaN(dayNumber) || !topic || !description) {
+  if (!id || !sprintId || isNaN(dayNumber) || !topic || !description) {
     return { error: 'All fields are required and Day Number must be a number' }
   }
 
   const { error } = await supabase
     .from('challengedays')
     .update({ 
+      sprintId,
       dayNumber, 
       topic, 
       description,

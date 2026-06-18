@@ -46,7 +46,7 @@ export default function Navbar({ user }: NavbarProps) {
               <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-zinc-900 border border-zinc-800 text-white transition-all group-hover:border-zinc-700">
                 <Flame className="h-4 w-4 text-orange-500 fill-orange-500/20" />
               </span>
-              <span>Streak<span className="text-zinc-400">Code</span></span>
+              <span>DSA<span className="text-orange-500 font-mono">Sprint</span></span>
             </Link>
           </div>
 

@@ -1,29 +1,29 @@
 import Link from 'next/link'
-import { Flame, Code, Users, Calendar, Trophy, ArrowRight, CheckCircle2, ChevronRight, Terminal } from 'lucide-react'
+import { Flame, Code, Users, Calendar, Trophy, ArrowRight, CheckCircle2, Terminal, Target, Zap, ChevronRight } from 'lucide-react'
 import { getSessionUser } from '@/utils/supabase/user'
 
-const JOURNEY_DAYS = [
-  { day: 1, topic: "Arrays & Hashing", desc: "Two Sum, Contains Duplicate", difficulty: "Easy" },
-  { day: 2, topic: "Two Pointers", desc: "Valid Palindrome, Two Sum II", difficulty: "Easy" },
-  { day: 3, topic: "Sliding Window", desc: "Best Time to Buy & Sell Stock", difficulty: "Easy" },
-  { day: 4, topic: "Stacks & Queues", desc: "Valid Parentheses, Min Stack", difficulty: "Easy" },
-  { day: 5, topic: "Linked Lists", desc: "Reverse Linked List, Merge Lists", difficulty: "Easy" },
-  { day: 6, topic: "Binary Search", desc: "Search in a Sorted Array", difficulty: "Easy" },
-  { day: 7, topic: "Recursion & Backtracking", desc: "Fibonacci, Subsets", difficulty: "Medium" },
-  { day: 8, topic: "Trees: DFS & BFS", desc: "Invert Binary Tree, Max Depth", difficulty: "Medium" },
-  { day: 9, topic: "Binary Search Trees", desc: "Validate BST, Search BST", difficulty: "Medium" },
-  { day: 10, topic: "Heaps / Priority Queues", desc: "Kth Largest Element in Array", difficulty: "Medium" },
-  { day: 11, topic: "Hashing Advanced", desc: "Group Anagrams, Top K Frequent", difficulty: "Medium" },
-  { day: 12, topic: "Graphs: DFS & BFS", desc: "Clone Graph, Course Schedule", difficulty: "Medium" },
-  { day: 13, topic: "Graphs: Matrix Paths", desc: "Number of Islands, Flood Fill", difficulty: "Medium" },
-  { day: 14, topic: "Dynamic Programming (1D)", desc: "Climbing Stairs, House Robber", difficulty: "Medium" },
-  { day: 15, topic: "Dynamic Programming (2D)", desc: "Unique Paths, Longest Common Subsequence", difficulty: "Medium" },
-  { day: 16, topic: "Greedy Algorithms", desc: "Jump Game, Gas Station", difficulty: "Medium" },
-  { day: 17, topic: "Intervals", desc: "Merge Intervals, Insert Interval", difficulty: "Medium" },
-  { day: 18, topic: "Tries", desc: "Implement Trie (Prefix Tree)", difficulty: "Medium" },
-  { day: 19, topic: "Bit Manipulation", desc: "Single Number, Number of 1 Bits", difficulty: "Easy" },
-  { day: 20, topic: "Advanced Graphs", desc: "Network Delay Time, Min Spanning Tree", difficulty: "Hard" },
-  { day: 21, topic: "Grand Finale Sprint", desc: "Median of Two Sorted Arrays, DP Wrap", difficulty: "Hard" },
+const FEATURED_SPRINTS = [
+  {
+    title: "21-Day DSA Habit Builder",
+    desc: "Our flagship track designed to establish consistency. Step-by-step progression from basic arrays to complex graphs.",
+    days: 21,
+    difficulty: "Mixed",
+    tag: "Recommended"
+  },
+  {
+    title: "Blind 75 Interview Prep",
+    desc: "Master the 75 essential LeetCode questions most frequently asked by Google, Meta, and Amazon.",
+    days: 15,
+    difficulty: "Medium Focus",
+    tag: "High Yield"
+  },
+  {
+    title: "7-Day DP Intensive",
+    desc: "Conquer your fear of Dynamic Programming. Covers memoization, tabulations, grids, and string alignment.",
+    days: 7,
+    difficulty: "Hard Focus",
+    tag: "Specialized"
+  }
 ]
 
 export default async function LandingPage() {
@@ -50,17 +50,17 @@ export default async function LandingPage() {
         <div className="flex justify-center mb-6">
           <div className="inline-flex items-center gap-2 rounded-full border border-zinc-800 bg-zinc-950 px-3 py-1 text-xs font-mono text-zinc-400">
             <Terminal className="h-3 w-3 text-orange-500" />
-            <span>git commit -m &quot;start challenge&quot;</span>
+            <span>git commit -m &quot;start dsa sprint&quot;</span>
           </div>
         </div>
 
         {/* Hero Section */}
         <div className="text-center max-w-3xl mx-auto">
           <h1 className="text-4xl font-extrabold tracking-tight text-white sm:text-6xl font-sans">
-            Build a Daily <span className="text-transparent bg-clip-text bg-gradient-to-r from-orange-400 to-amber-500">DSA Habit</span> in 21 Days.
+            Conquer DSA with <span className="text-transparent bg-clip-text bg-gradient-to-r from-orange-400 to-amber-500">Curated Sprints</span>
           </h1>
           <p className="mt-6 text-lg leading-8 text-zinc-400">
-            The hardest part of data structures and algorithms isn&apos;t the trees or the dynamic programming — it&apos;s consistency. Break the cycle, solve 1 daily curated problem, and build a lasting habit.
+            Establish a consistent problem-solving habit. Choose a curated coding sprint, upload your solution log, and watch your daily streak grow. Fully self-paced, frictionless, and automated.
           </p>
           <div className="mt-10 flex items-center justify-center gap-x-6">
             {user ? (
@@ -77,7 +77,7 @@ export default async function LandingPage() {
                   href="/signup"
                   className="group flex items-center gap-2 rounded-md bg-white px-5 py-3 text-sm font-semibold text-black hover:bg-zinc-200 transition-all font-mono"
                 >
-                  Join the 21-Day Challenge
+                  Start a Free Sprint
                   <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-1" />
                 </Link>
                 <Link
@@ -91,76 +91,82 @@ export default async function LandingPage() {
           </div>
         </div>
 
-        {/* Features Grid */}
-        <div className="mx-auto mt-24 max-w-5xl sm:mt-32 lg:mt-40">
-          <div className="grid grid-cols-1 gap-8 sm:grid-cols-3">
-            <div className="rounded-xl border border-zinc-800 bg-zinc-950/50 p-8 glow-border">
-              <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-zinc-900 border border-zinc-800">
-                <Calendar className="h-5 w-5 text-orange-500" />
-              </div>
-              <h3 className="mt-4 text-base font-semibold text-white">Curated Progression</h3>
-              <p className="mt-2 text-sm text-zinc-400 leading-relaxed">
-                Step-by-step curriculum starting from arrays and sorting up to complex graphs and DP. One challenge unlocked every 24 hours.
-              </p>
-            </div>
-            <div className="rounded-xl border border-zinc-800 bg-zinc-950/50 p-8 glow-border">
-              <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-zinc-900 border border-zinc-800">
-                <Flame className="h-5 w-5 text-orange-500" />
-              </div>
-              <h3 className="mt-4 text-base font-semibold text-white">Streak System</h3>
-              <p className="mt-2 text-sm text-zinc-400 leading-relaxed">
-                Visual streak trackers and contribution graphs force you to log in daily, upload your solutions, and keep the chain alive.
-              </p>
-            </div>
-            <div className="rounded-xl border border-zinc-800 bg-zinc-950/50 p-8 glow-border">
-              <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-zinc-900 border border-zinc-800">
-                <Trophy className="h-5 w-5 text-orange-500" />
-              </div>
-              <h3 className="mt-4 text-base font-semibold text-white">Leaderboards</h3>
-              <p className="mt-2 text-sm text-zinc-400 leading-relaxed">
-                Compete with other engineers. Earn points for speed, daily submissions, and overall streak length.
-              </p>
-            </div>
-          </div>
-        </div>
-
-        {/* Journey Timeline */}
+        {/* Sprints Section */}
         <div className="mx-auto mt-24 max-w-5xl sm:mt-32">
           <div className="text-center mb-12">
-            <h2 className="text-2xl font-bold tracking-tight text-white sm:text-3xl font-mono">
-              The 21-Day Syllabus
+            <h2 className="text-2xl font-bold tracking-tight text-white sm:text-3xl font-mono flex items-center justify-center gap-2">
+              <Target className="h-6 w-6 text-orange-500" />
+              Available Sprints
             </h2>
-            <p className="mt-2 text-sm text-zinc-400">
-              One locked topic per day. Rise from basics to high-frequency interview classics.
+            <p className="mt-2 text-sm text-zinc-450">
+              Each sprint features locked topics unlocked day-by-day. Join one to begin.
             </p>
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
-            {JOURNEY_DAYS.map((day) => (
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            {FEATURED_SPRINTS.map((sprint) => (
               <div
-                key={day.day}
-                className="group relative rounded-lg border border-zinc-900 bg-zinc-950/30 p-5 hover:border-zinc-800 transition-all"
+                key={sprint.title}
+                className="rounded-xl border border-zinc-900 bg-zinc-950/40 p-6 flex flex-col justify-between hover:border-zinc-800 transition-all"
               >
-                <div className="flex items-center justify-between mb-2">
-                  <span className="text-xs font-mono font-bold text-orange-500">
-                    DAY {day.day < 10 ? `0${day.day}` : day.day}
-                  </span>
-                  <span className={`text-[10px] font-mono px-2 py-0.5 rounded border ${
-                    day.difficulty === "Easy" ? "border-emerald-500/20 bg-emerald-500/10 text-emerald-400" :
-                    day.difficulty === "Medium" ? "border-amber-500/20 bg-amber-500/10 text-amber-400" :
-                    "border-red-500/20 bg-red-500/10 text-red-400"
-                  }`}>
-                    {day.difficulty}
-                  </span>
+                <div>
+                  <div className="flex items-center justify-between mb-4">
+                    <span className="text-[10px] font-mono font-bold text-orange-500 uppercase tracking-wider bg-orange-950/20 px-2 py-0.5 rounded border border-orange-900/30">
+                      {sprint.tag}
+                    </span>
+                    <span className="text-[10px] font-mono text-zinc-500">
+                      {sprint.days} Days
+                    </span>
+                  </div>
+                  <h3 className="text-base font-bold text-white font-mono">{sprint.title}</h3>
+                  <p className="mt-2.5 text-xs text-zinc-450 leading-relaxed">{sprint.desc}</p>
                 </div>
-                <h4 className="text-sm font-semibold text-white group-hover:text-orange-400 transition-colors">
-                  {day.topic}
-                </h4>
-                <p className="text-xs text-zinc-500 mt-1 line-clamp-1">
-                  {day.desc}
-                </p>
+                <div className="mt-6 pt-4 border-t border-zinc-900 flex items-center justify-between">
+                  <span className="text-[10px] font-mono text-zinc-550">
+                    Difficulty: <span className="text-zinc-400">{sprint.difficulty}</span>
+                  </span>
+                  <Link
+                    href={user ? "/dashboard" : "/signup"}
+                    className="text-[11px] font-mono font-semibold text-white hover:text-orange-400 flex items-center gap-0.5 transition-colors"
+                  >
+                    View Sprint <ChevronRight className="h-3 w-3" />
+                  </Link>
+                </div>
               </div>
             ))}
+          </div>
+        </div>
+
+        {/* Features Grid */}
+        <div className="mx-auto mt-24 max-w-5xl sm:mt-32">
+          <div className="grid grid-cols-1 gap-8 sm:grid-cols-3">
+            <div className="rounded-xl border border-zinc-900 bg-zinc-950/20 p-8">
+              <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-zinc-900 border border-zinc-850">
+                <Zap className="h-5 w-5 text-orange-500" />
+              </div>
+              <h3 className="mt-4 text-sm font-bold text-white font-mono">Instant Auto-Approval</h3>
+              <p className="mt-2 text-xs text-zinc-450 leading-relaxed">
+                No waiting for manual reviews. Log your profile or paste a solution, and the platform verifies your progress immediately.
+              </p>
+            </div>
+            <div className="rounded-xl border border-zinc-900 bg-zinc-950/20 p-8">
+              <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-zinc-900 border border-zinc-850">
+                <Flame className="h-5 w-5 text-orange-500" />
+              </div>
+              <h3 className="mt-4 text-sm font-bold text-white font-mono">Streak Mechanics</h3>
+              <p className="mt-2 text-xs text-zinc-450 leading-relaxed">
+                Consistency is key. Build up your daily streak, accumulate XP score points, and maintain your commitment calendar.
+              </p>
+            </div>
+            <div className="rounded-xl border border-zinc-900 bg-zinc-950/20 p-8">
+              <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-zinc-900 border border-zinc-850">
+                <Trophy className="h-5 w-5 text-orange-500" />
+              </div>
+              <h3 className="mt-4 text-sm font-bold text-white font-mono">Global Leaderboard</h3>
+              <p className="mt-2 text-xs text-zinc-450 leading-relaxed">
+                Stack up against other software engineers. Gain standings based on problems completed and consistent streak longevity.
+              </p>
+            </div>
           </div>
         </div>
       </div>
@@ -169,7 +175,7 @@ export default async function LandingPage() {
       <footer className="border-t border-zinc-900 bg-zinc-950/50 py-8">
         <div className="mx-auto max-w-7xl px-6 lg:px-8 flex flex-col sm:flex-row items-center justify-between gap-4 text-xs font-mono text-zinc-500">
           <div>
-            &copy; 2026 StreakCode. All rights reserved.
+            &copy; 2026 DSASprint. All rights reserved.
           </div>
           <div className="flex gap-4">
             <span className="hover:text-zinc-300 cursor-pointer">Syllabus</span>

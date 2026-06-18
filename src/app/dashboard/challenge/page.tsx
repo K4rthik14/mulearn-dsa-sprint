@@ -6,6 +6,7 @@ import { ArrowLeft, ExternalLink, Calendar, BookOpen, Code, UploadCloud, CheckCi
 import ChallengeSubmissionForm from '@/components/ChallengeSubmissionForm'
 
 interface SearchParams {
+  sprint?: string
   day?: string
 }
 
@@ -16,12 +17,15 @@ export default async function ChallengePage(props: { searchParams: Promise<Searc
     redirect('/login')
   }
 
+  const requestedSprintSlug = searchParams.sprint || 'dsa-habit-21'
   const requestedDayNumber = parseInt(searchParams.day || '1')
 
   let isMock = false
+  let currentSprint: any = null
   let currentChallengeDay: any = null
   let resources: any[] = []
   let problems: any[] = []
+  let completedDayIds: string[] = []
   let completedDayNumbers: number[] = []
   let existingSubmission: any = null
 
@@ -30,31 +34,37 @@ export default async function ChallengePage(props: { searchParams: Promise<Searc
 
   if (!supabaseUrl || !supabaseKey || supabaseUrl.includes('placeholder') || supabaseKey.includes('placeholder')) {
     isMock = true
-    completedDayNumbers = [1, 2]
-    
-    // Seed mock day info
+    currentSprint = {
+      id: 'mock-sprint-1',
+      name: '21-Day DSA Habit Builder',
+      slug: 'dsa-habit-21'
+    }
     currentChallengeDay = {
       id: `mock-day-${requestedDayNumber}`,
       dayNumber: requestedDayNumber,
-      topic: requestedDayNumber === 1 ? "Arrays & Hashing" : requestedDayNumber === 2 ? "Two Pointers" : "Sliding Window",
-      description: `Learn the fundamentals of ${requestedDayNumber === 1 ? "Arrays & Hashing" : requestedDayNumber === 2 ? "Two Pointers" : "Sliding Window"} and practice typical interview problems.`
+      topic: [
+        "Arrays & Hashing", "Two Pointers", "Sliding Window", "Stacks & Queues", "Linked Lists",
+        "Binary Search", "Recursion & Backtracking", "Trees: DFS & BFS", "Binary Search Trees", "Heaps / Priority Queues",
+        "Hashing Advanced", "Graphs: DFS & BFS", "Graphs: Matrix Paths", "Dynamic Programming (1D)", "Dynamic Programming (2D)",
+        "Greedy Algorithms", "Intervals", "Tries", "Bit Manipulation", "Advanced Graphs", "Grand Finale Sprint"
+      ][requestedDayNumber - 1] || 'DSA Practice',
+      description: `Learn the fundamentals of intermediate algorithms and solve typical interview questions.`
     }
-
     resources = [
-      { id: 'r1', title: 'Video: NeetCode DSA Introduction', url: 'https://youtube.com' },
-      { id: 'r2', title: 'Article: Array Techniques Guide', url: 'https://leetcode.com' }
+      { id: 'r1', title: 'Video: Topic Introduction Walkthrough', url: 'https://youtube.com', type: 'YouTube' },
+      { id: 'r2', title: 'Article: Practice Patterns Guide', url: 'https://leetcode.com', type: 'Article' }
     ]
-
     problems = [
-      { id: 'p1', title: 'Two Sum', difficulty: 'Easy', url: 'https://leetcode.com/problems/two-sum/' },
-      { id: 'p2', title: 'Contains Duplicate', difficulty: 'Easy', url: 'https://leetcode.com/problems/contains-duplicate/' }
+      { id: 'p1', title: 'Curated LeetCode Practice 1', difficulty: 'Easy', platform: 'LeetCode', points: 10, url: 'https://leetcode.com' },
+      { id: 'p2', title: 'Curated LeetCode Practice 2', difficulty: 'Medium', platform: 'LeetCode', points: 10, url: 'https://leetcode.com' }
     ]
-
+    completedDayNumbers = [1, 2]
     if (completedDayNumbers.includes(requestedDayNumber)) {
       existingSubmission = {
         id: 'mock-sub-1',
         profileLink: 'https://leetcode.com/u/karthik14/',
-        screenshotUrl: 'https://images.unsplash.com/photo-1618401471353-b98aedd07871', // generic image
+        screenshotUrl: 'https://images.unsplash.com/photo-1618401471353-b98aedd07871',
+        status: 'approved',
         submittedAt: new Date().toISOString()
       }
     }
@@ -62,83 +72,104 @@ export default async function ChallengePage(props: { searchParams: Promise<Searc
     try {
       const supabase = await createClient()
 
-      // Fetch completed day numbers to validate unlock
-      const { data: subs } = await supabase
-        .from('submissions')
-        .select('challengeDayId, challengedays(dayNumber)')
-        .eq('userId', user.id)
-        .eq('status', 'approved')
+      // 1. Fetch requested sprint
+      const { data: sprintData } = await supabase
+        .from('sprints')
+        .select('*')
+        .eq('slug', requestedSprintSlug)
+        .single()
 
-      if (subs) {
-        completedDayNumbers = subs.map((s: any) => s.challengedays?.dayNumber || 0).filter(Boolean)
+      if (!sprintData) {
+        redirect('/dashboard')
+      }
+      currentSprint = sprintData
+
+      // 2. Fetch all challenge days of this sprint to compute unlock states
+      const { data: sprintDays } = await supabase
+        .from('challengedays')
+        .select('*')
+        .eq('sprintId', currentSprint.id)
+        .order('dayNumber', { ascending: true })
+
+      const daysList = sprintDays || []
+
+      // 3. Fetch approved submissions for this user in this specific sprint
+      if (daysList.length > 0) {
+        const dayIds = daysList.map(d => d.id)
+        const { data: userSubs } = await supabase
+          .from('submissions')
+          .select('challengeDayId, challengedays(dayNumber)')
+          .eq('userId', user.id)
+          .eq('status', 'approved')
+          .in('challengeDayId', dayIds)
+
+        if (userSubs) {
+          completedDayIds = userSubs.map((s: any) => s.challengeDayId)
+          completedDayNumbers = userSubs.map((s: any) => s.challengedays?.dayNumber || 0).filter(Boolean)
+        }
       }
 
-      // Check unlock: day is unlocked if dayNumber <= completedCount + 1
-      const isUnlocked = requestedDayNumber <= completedDayNumbers.length + 1
+      // 4. Validate unlock of requestedDayNumber
+      const requestedDay = daysList.find(d => d.dayNumber === requestedDayNumber)
+      if (!requestedDay) {
+        redirect(`/dashboard?sprint=${requestedSprintSlug}`)
+      }
+
+      const completedDaysSet = new Set(completedDayNumbers)
+      const isUnlocked = requestedDayNumber === 1 || 
+                         (requestedDay.unlockDay ? completedDaysSet.has(requestedDay.unlockDay) : completedDaysSet.has(requestedDayNumber - 1))
+
       if (!isUnlocked) {
-        // Redirect to their active day
-        let activeDay = 1
-        for (let i = 1; i <= 21; i++) {
-          if (!completedDayNumbers.includes(i)) {
-            activeDay = i
+        // Find the user's lowest unsolved unlocked day to redirect them
+        let activeDayNumber = 1
+        for (const d of daysList) {
+          const isDayCompleted = completedDayIds.includes(d.id)
+          const isDayUnlocked = d.dayNumber === 1 || 
+                                (d.unlockDay ? completedDaysSet.has(d.unlockDay) : completedDaysSet.has(d.dayNumber - 1))
+          
+          if (!isDayCompleted && isDayUnlocked) {
+            activeDayNumber = d.dayNumber
             break
           }
         }
-        redirect(`/dashboard/challenge?day=${activeDay}`)
+        redirect(`/dashboard/challenge?sprint=${requestedSprintSlug}&day=${activeDayNumber}`)
       }
 
-      // Fetch day info
-      const { data: dayData } = await supabase
-        .from('challengedays')
-        .select('*')
-        .eq('dayNumber', requestedDayNumber)
-        .single()
+      currentChallengeDay = requestedDay
 
-      if (dayData) {
-        currentChallengeDay = dayData
-      } else {
-        // Fallback placeholder day if admin hasn't created it in DB yet
-        currentChallengeDay = {
-          id: `placeholder-day-${requestedDayNumber}`,
-          dayNumber: requestedDayNumber,
-          topic: `Challenge Topic ${requestedDayNumber}`,
-          description: `Admin has not added details for this day yet. You can submit your DSA practice log here.`
-        }
-      }
-
-      // Fetch resources
+      // 5. Fetch resources for current challenge day
       const { data: resData } = await supabase
         .from('resources')
         .select('*')
         .eq('challengeDayId', currentChallengeDay.id)
-
       resources = resData || []
 
-      // Fetch problems
+      // 6. Fetch problems for current challenge day
       const { data: probData } = await supabase
         .from('problems')
         .select('*')
         .eq('challengeDayId', currentChallengeDay.id)
         .order('orderIndex', { ascending: true })
-
       problems = probData || []
 
-      // Fetch existing submission
+      // 7. Fetch existing submission
       const { data: existingSub } = await supabase
         .from('submissions')
         .select('*')
         .eq('userId', user.id)
         .eq('challengeDayId', currentChallengeDay.id)
-        .single()
-
+        .maybeSingle()
       existingSubmission = existingSub || null
+
     } catch (err) {
-      console.error('Challenge page error:', err)
+      console.error('Challenge details page error:', err)
       isMock = true
     }
   }
 
-  const isCompleted = completedDayNumbers.includes(requestedDayNumber)
+  const isCompleted = isMock 
+    ? completedDayNumbers.includes(requestedDayNumber)
+    : completedDayIds.includes(currentChallengeDay?.id)
 
   return (
     <div className="mx-auto max-w-5xl px-4 sm:px-6 lg:px-8 py-10 flex-1 flex flex-col gap-8">
@@ -147,7 +178,7 @@ export default async function ChallengePage(props: { searchParams: Promise<Searc
         <div className="rounded-md border border-amber-500/20 bg-amber-500/10 p-3 flex items-start gap-2 max-w-xl">
           <Terminal className="h-4 w-4 text-amber-500 mt-0.5 shrink-0" />
           <div className="text-xs font-mono text-amber-400">
-            <span className="font-bold">Demo Mode:</span> Showing mock syllabus details. Configure Supabase credentials to pull actual problems and commit submissions.
+            <span className="font-bold">Demo Mode:</span> Showing mock challenge details. Configure Supabase credentials to pull actual problems and log real solution completions.
           </div>
         </div>
       )}
@@ -155,11 +186,11 @@ export default async function ChallengePage(props: { searchParams: Promise<Searc
       {/* Back to Dashboard */}
       <div>
         <Link
-          href="/dashboard"
+          href={`/dashboard?sprint=${requestedSprintSlug}`}
           className="inline-flex items-center gap-1.5 text-xs font-mono text-zinc-500 hover:text-white transition-colors"
         >
           <ArrowLeft className="h-3.5 w-3.5" />
-          BACK TO DASHBOARD
+          BACK TO {currentSprint?.name?.toUpperCase() || 'DASHBOARD'}
         </Link>
       </div>
 
@@ -173,11 +204,11 @@ export default async function ChallengePage(props: { searchParams: Promise<Searc
             {isCompleted ? (
               <span className="inline-flex items-center gap-1 text-[10px] font-mono px-2 py-0.5 rounded border border-emerald-500/20 bg-emerald-500/10 text-emerald-400">
                 <CheckCircle2 className="h-3 w-3" />
-                Completed
+                Completed / Solved
               </span>
             ) : (
               <span className="inline-flex items-center gap-1 text-[10px] font-mono px-2 py-0.5 rounded border border-orange-500/20 bg-orange-500/10 text-orange-400 animate-pulse">
-                Active
+                Active / Unsolved
               </span>
             )}
           </div>
@@ -201,7 +232,7 @@ export default async function ChallengePage(props: { searchParams: Promise<Searc
             </h3>
 
             {resources.length === 0 ? (
-              <p className="text-xs text-zinc-500 italic">No resources added for this day yet.</p>
+              <p className="text-xs text-zinc-500 italic font-mono">No resources configured for this day.</p>
             ) : (
               <div className="space-y-3">
                 {resources.map((res) => {
@@ -250,7 +281,7 @@ export default async function ChallengePage(props: { searchParams: Promise<Searc
             </h3>
 
             {problems.length === 0 ? (
-              <p className="text-xs text-zinc-500 italic">No problems added for this day yet.</p>
+              <p className="text-xs text-zinc-500 italic font-mono">No problems configured for this day.</p>
             ) : (
               <div className="space-y-3">
                 {problems.map((prob) => {
@@ -314,31 +345,19 @@ export default async function ChallengePage(props: { searchParams: Promise<Searc
 
             {existingSubmission && existingSubmission.status !== 'rejected' ? (
               <div className="space-y-4">
-                {existingSubmission.status === 'pending' ? (
-                  <div className="rounded-lg border border-amber-500/20 bg-amber-500/5 p-4 flex flex-col gap-2">
-                    <div className="flex items-center gap-2 text-xs font-mono font-semibold text-amber-500">
-                      <AlertTriangle className="h-4 w-4 shrink-0" />
-                      Pending Review
-                    </div>
-                    <p className="text-[11px] text-zinc-400">
-                      Your solution was logged on {new Date(existingSubmission.submittedAt).toLocaleDateString()} and is pending admin approval.
-                    </p>
+                <div className="rounded-lg border border-emerald-500/20 bg-emerald-500/5 p-4 flex flex-col gap-2">
+                  <div className="flex items-center gap-2 text-xs font-mono font-semibold text-emerald-400">
+                    <CheckCircle2 className="h-4 w-4 shrink-0" />
+                    Verified & Completed!
                   </div>
-                ) : (
-                  <div className="rounded-lg border border-emerald-500/20 bg-emerald-500/5 p-4 flex flex-col gap-2">
-                    <div className="flex items-center gap-2 text-xs font-mono font-semibold text-emerald-400">
-                      <CheckCircle2 className="h-4 w-4 shrink-0" />
-                      Approved / Solution Logged!
-                    </div>
-                    <p className="text-[11px] text-zinc-400">
-                      Your challenge solution was approved. Points and streak have been credited to your profile!
-                    </p>
-                  </div>
-                )}
+                  <p className="text-[11px] text-zinc-400">
+                    Your challenge solution was logged. Points and streak have been credited to your profile!
+                  </p>
+                </div>
 
                 {existingSubmission.profileLink && (
                   <div>
-                    <span className="block text-[10px] font-mono text-zinc-500">LEETCODE PROFILE</span>
+                    <span className="block text-[10px] font-mono text-zinc-500">SUBMITTED PROFILE / CODE LINK</span>
                     <a
                       href={existingSubmission.profileLink}
                       target="_blank"
@@ -372,9 +391,6 @@ export default async function ChallengePage(props: { searchParams: Promise<Searc
                     </div>
                     <p className="text-[11px] text-red-400/90 font-medium">
                       Feedback: {existingSubmission.rejectionReason || 'No reason specified'}
-                    </p>
-                    <p className="text-[10px] text-zinc-500">
-                      Please review the feedback and submit a corrected solution link or screenshot below.
                     </p>
                   </div>
                 )}

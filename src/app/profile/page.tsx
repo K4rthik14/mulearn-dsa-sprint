@@ -1,7 +1,7 @@
 import { redirect } from 'next/navigation'
 import { getSessionUser } from '@/utils/supabase/user'
 import { createClient } from '@/utils/supabase/server'
-import { Flame, CheckCircle2, Award, Calendar, BarChart2, Terminal } from 'lucide-react'
+import { Flame, CheckCircle2, Award, Calendar, BarChart2, Terminal, BookOpen } from 'lucide-react'
 
 export default async function ProfilePage() {
   const user = await getSessionUser()
@@ -17,6 +17,7 @@ export default async function ProfilePage() {
   }
 
   let submissions: any[] = []
+  let sprintProgressList: any[] = []
   let isMock = false
 
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
@@ -32,21 +33,35 @@ export default async function ProfilePage() {
     }
     
     // Seed mock submissions for activity graph
-    // Let's create submissions spread across the last 15 days
     const now = new Date()
     submissions = Array.from({ length: 5 }, (_, i) => {
       const date = new Date()
-      date.setDate(now.getDate() - i * 2) // every other day
+      date.setDate(now.getDate() - i * 2)
       return {
         submittedAt: date.toISOString(),
         status: 'approved'
       }
     })
+
+    sprintProgressList = [
+      {
+        name: '21-Day DSA Habit Builder',
+        completed: 3,
+        total: 21,
+        percentage: Math.round((3 / 21) * 100)
+      },
+      {
+        name: 'Blind 75 Interview Prep',
+        completed: 2,
+        total: 15,
+        percentage: Math.round((2 / 15) * 100)
+      }
+    ]
   } else {
     try {
       const supabase = await createClient()
 
-      // Fetch stats
+      // 1. Fetch leaderboard stats
       const { data: leadData } = await supabase
         .from('leaderboard')
         .select('score, streak, longestStreak')
@@ -59,43 +74,77 @@ export default async function ProfilePage() {
         dbStats.longestStreak = leadData.longestStreak
       }
 
-      // Fetch user submissions
+      // 2. Fetch all user submissions
       const { data: subsData } = await supabase
         .from('submissions')
-        .select('submittedAt, status')
+        .select('challengeDayId, submittedAt, status')
         .eq('userId', user.id)
         .eq('status', 'approved')
 
       submissions = subsData || []
       dbStats.completedCount = submissions.length
+
+      // 3. Fetch user enrolled sprints and calculate progress per sprint
+      const { data: enrollments } = await supabase
+        .from('user_sprints')
+        .select(`
+          sprintId,
+          sprints (
+            id,
+            name,
+            slug,
+            durationDays
+          )
+        `)
+        .eq('userId', user.id)
+
+      const enrolledSprints = enrollments || []
+
+      for (const enr of enrolledSprints) {
+        if (enr.sprints) {
+          const sprint = enr.sprints as any
+          
+          // Get challenge days for this sprint
+          const { data: days } = await supabase
+            .from('challengedays')
+            .select('id')
+            .eq('sprintId', sprint.id)
+
+          const daysList = days || []
+          const dayIds = daysList.map(d => d.id)
+
+          // Count completed days in this sprint
+          const completedCountInSprint = submissions.filter(s => dayIds.includes(s.challengeDayId)).length
+
+          sprintProgressList.push({
+            name: sprint.name,
+            completed: completedCountInSprint,
+            total: daysList.length || sprint.durationDays || 21,
+            percentage: daysList.length > 0 ? Math.round((completedCountInSprint / daysList.length) * 100) : 0
+          })
+        }
+      }
     } catch (err) {
       console.error('Profile error:', err)
       isMock = true
     }
   }
 
-  // Calculate completion percentage
-  const completionPercentage = Math.round((dbStats.completedCount / 21) * 100)
-
   // Generate GitHub contribution grid: 12 weeks = 84 days
-  // Grid has 7 rows (Sunday to Saturday) and 12 columns
   const totalDays = 84
   const gridCells = []
   const now = new Date()
   
-  // Align start to Sunday of 12 weeks ago
   const startDay = new Date()
   startDay.setDate(now.getDate() - totalDays + 1)
   const startDayOffset = startDay.getDay()
-  startDay.setDate(startDay.getDate() - startDayOffset) // Rollback to Sunday
+  startDay.setDate(startDay.getDate() - startDayOffset)
 
-  // Get active submission dates (YYYY-MM-DD format in local timezone)
   const submissionDates = submissions.map((s) => {
     const d = new Date(s.submittedAt)
     return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
   })
 
-  // Populate cell structures
   for (let i = 0; i < totalDays; i++) {
     const cellDate = new Date(startDay)
     cellDate.setDate(startDay.getDate() + i)
@@ -125,46 +174,57 @@ export default async function ProfilePage() {
       {/* Profile Header */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 pb-6 border-b border-zinc-900">
         <div>
-          <h1 className="text-3xl font-extrabold tracking-tight text-white font-mono">{user.name}</h1>
+          <h1 className="text-3xl font-extrabold tracking-tight text-white font-mono">{user.name || 'User'}</h1>
           <p className="text-sm text-zinc-400 mt-1 font-mono">{user.email}</p>
         </div>
-        <div className="flex items-center gap-2 border border-zinc-800 bg-zinc-950/60 rounded-lg p-3">
+        <div className="flex items-center gap-2 border border-zinc-900 bg-zinc-950/60 rounded-lg p-3">
           <Flame className="h-5 w-5 text-orange-500" />
           <div className="flex flex-col">
-            <span className="text-xs text-zinc-500 font-mono leading-none">RANKING STATUS</span>
+            <span className="text-[10px] text-zinc-550 font-mono leading-none">RANKING STATUS</span>
             <span className="text-sm font-bold text-white font-mono mt-1">Consistency Score: {dbStats.score}</span>
           </div>
         </div>
       </div>
 
-      {/* Completion Progress Tracker */}
-      <div className="rounded-xl border border-zinc-800 bg-zinc-950/40 p-6">
-        <div className="flex justify-between items-center mb-4">
-          <span className="text-sm font-semibold font-mono text-white flex items-center gap-2">
-            <CheckCircle2 className="h-4.5 w-4.5 text-zinc-400" />
-            CHALLENGE COMPLETION
-          </span>
-          <span className="text-sm font-bold font-mono text-orange-500">{completionPercentage}%</span>
-        </div>
+      {/* Sprint Progress Cards */}
+      <div className="space-y-4">
+        <h3 className="text-xs font-bold font-mono text-zinc-400 uppercase tracking-widest flex items-center gap-2">
+          <BookOpen className="h-4 w-4 text-orange-500" />
+          ACTIVE SPRINT PROGRESS
+        </h3>
         
-        {/* Progress Bar */}
-        <div className="w-full bg-zinc-900 rounded-full h-2.5 mb-2 overflow-hidden border border-zinc-950">
-          <div
-            className="bg-orange-500 h-2.5 rounded-full transition-all duration-500"
-            style={{ width: `${completionPercentage}%` }}
-          />
-        </div>
-        
-        <div className="flex justify-between text-[11px] font-mono text-zinc-500">
-          <span>{dbStats.completedCount} Days Solved</span>
-          <span>21 Days Total</span>
-        </div>
+        {sprintProgressList.length === 0 ? (
+          <div className="rounded-xl border border-zinc-900 bg-zinc-950/20 p-8 text-center text-xs text-zinc-500 italic font-mono">
+            You are not enrolled in any sprint tracks yet. Go to your Dashboard to enroll!
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {sprintProgressList.map((progress, idx) => (
+              <div key={idx} className="rounded-xl border border-zinc-900 bg-zinc-950/40 p-5 space-y-3">
+                <div className="flex justify-between items-center text-xs font-mono">
+                  <span className="text-white font-bold">{progress.name}</span>
+                  <span className="text-orange-500">{progress.percentage}%</span>
+                </div>
+                <div className="w-full bg-zinc-900 rounded-full h-2 overflow-hidden border border-zinc-950">
+                  <div
+                    className="bg-orange-500 h-2 rounded-full transition-all duration-500"
+                    style={{ width: `${progress.percentage}%` }}
+                  />
+                </div>
+                <div className="flex justify-between text-[10px] font-mono text-zinc-550">
+                  <span>{progress.completed} Days Completed</span>
+                  <span>{progress.total} Days Total</span>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
       </div>
 
       {/* Streak Statistics */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <div className="rounded-xl border border-zinc-850 bg-zinc-950/20 p-5 flex items-center gap-4">
-          <div className="p-3 rounded-lg bg-zinc-900 border border-zinc-800 shrink-0">
+        <div className="rounded-xl border border-zinc-900 bg-zinc-950/20 p-5 flex items-center gap-4">
+          <div className="p-3 rounded-lg bg-zinc-900 border border-zinc-850 shrink-0">
             <Flame className="h-5 w-5 text-orange-500" />
           </div>
           <div>
@@ -173,8 +233,8 @@ export default async function ProfilePage() {
           </div>
         </div>
 
-        <div className="rounded-xl border border-zinc-850 bg-zinc-950/20 p-5 flex items-center gap-4">
-          <div className="p-3 rounded-lg bg-zinc-900 border border-zinc-800 shrink-0">
+        <div className="rounded-xl border border-zinc-900 bg-zinc-950/20 p-5 flex items-center gap-4">
+          <div className="p-3 rounded-lg bg-zinc-900 border border-zinc-850 shrink-0">
             <Award className="h-5 w-5 text-yellow-500" />
           </div>
           <div>
@@ -183,8 +243,8 @@ export default async function ProfilePage() {
           </div>
         </div>
 
-        <div className="rounded-xl border border-zinc-850 bg-zinc-950/20 p-5 flex items-center gap-4">
-          <div className="p-3 rounded-lg bg-zinc-900 border border-zinc-800 shrink-0">
+        <div className="rounded-xl border border-zinc-900 bg-zinc-950/20 p-5 flex items-center gap-4">
+          <div className="p-3 rounded-lg bg-zinc-900 border border-zinc-850 shrink-0">
             <Calendar className="h-5 w-5 text-emerald-500" />
           </div>
           <div>
@@ -195,7 +255,7 @@ export default async function ProfilePage() {
       </div>
 
       {/* GitHub-style Activity Contribution Graph */}
-      <div className="rounded-xl border border-zinc-800 bg-zinc-950/40 p-6">
+      <div className="rounded-xl border border-zinc-900 bg-zinc-950/40 p-6">
         <h3 className="text-sm font-semibold font-mono text-white mb-6 flex items-center gap-2">
           <BarChart2 className="h-4.5 w-4.5 text-zinc-400" />
           ACTIVITY GRAPH
@@ -210,7 +270,7 @@ export default async function ProfilePage() {
                 className={`h-3 w-3 rounded-[2px] transition-colors ${
                   cell.hasSubmitted
                     ? 'bg-orange-500 hover:bg-orange-400'
-                    : 'bg-zinc-900 hover:bg-zinc-800'
+                    : 'bg-zinc-900 hover:bg-zinc-850'
                 }`}
               />
             ))}

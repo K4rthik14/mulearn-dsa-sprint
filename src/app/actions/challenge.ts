@@ -74,7 +74,7 @@ export async function submitChallenge(formData: FormData) {
         .update({
           screenshotUrl,
           profileLink: profileLink || null,
-          status: 'pending',
+          status: 'approved',
           rejectionReason: null
         })
         .eq('id', existingSub.id)
@@ -90,7 +90,7 @@ export async function submitChallenge(formData: FormData) {
         challengeDayId,
         screenshotUrl,
         profileLink: profileLink || null,
-        status: 'pending'
+        status: 'approved'
       })
     dbError = error
   }

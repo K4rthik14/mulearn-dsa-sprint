@@ -8,6 +8,7 @@ interface ChallengeDay {
   id: string
   dayNumber: number
   topic: string
+  sprintName?: string
 }
 
 interface Resource {
@@ -26,8 +27,15 @@ interface ResourcesManagerProps {
 const RESOURCE_TYPES = ['YouTube', 'Article', 'Documentation', 'PDF', 'Playlist']
 
 export default function ResourcesManager({ challengeDays, initialResources }: ResourcesManagerProps) {
-  // Sort challenge days by dayNumber
-  const sortedDays = [...challengeDays].sort((a, b) => a.dayNumber - b.dayNumber)
+  // Sort challenge days by sprintName first, then by dayNumber
+  const sortedDays = [...challengeDays].sort((a, b) => {
+    const sprintA = a.sprintName || ''
+    const sprintB = b.sprintName || ''
+    if (sprintA !== sprintB) {
+      return sprintA.localeCompare(sprintB)
+    }
+    return a.dayNumber - b.dayNumber
+  })
   
   const [selectedDayId, setSelectedDayId] = useState<string>(
     sortedDays.length > 0 ? sortedDays[0].id : ''
@@ -186,7 +194,7 @@ export default function ResourcesManager({ challengeDays, initialResources }: Re
             ) : (
               sortedDays.map((day) => (
                 <option key={day.id} value={day.id}>
-                  Day {day.dayNumber < 10 ? `0${day.dayNumber}` : day.dayNumber}: {day.topic}
+                  [{day.sprintName || 'General'}] Day {day.dayNumber < 10 ? `0${day.dayNumber}` : day.dayNumber}: {day.topic}
                 </option>
               ))
             )}

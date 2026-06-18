@@ -8,6 +8,7 @@ interface ChallengeDay {
   id: string
   dayNumber: number
   topic: string
+  sprintName?: string
 }
 
 interface Problem {
@@ -30,7 +31,15 @@ const PLATFORMS = ['LeetCode', 'Codeforces', 'HackerRank']
 const DIFFICULTIES = ['Easy', 'Medium', 'Hard']
 
 export default function ProblemsManager({ challengeDays, initialProblems }: ProblemsManagerProps) {
-  const sortedDays = [...challengeDays].sort((a, b) => a.dayNumber - b.dayNumber)
+  // Sort challenge days by sprintName first, then by dayNumber
+  const sortedDays = [...challengeDays].sort((a, b) => {
+    const sprintA = a.sprintName || ''
+    const sprintB = b.sprintName || ''
+    if (sprintA !== sprintB) {
+      return sprintA.localeCompare(sprintB)
+    }
+    return a.dayNumber - b.dayNumber
+  })
   
   const [selectedDayId, setSelectedDayId] = useState<string>(
     sortedDays.length > 0 ? sortedDays[0].id : ''
@@ -214,7 +223,7 @@ export default function ProblemsManager({ challengeDays, initialProblems }: Prob
             ) : (
               sortedDays.map((day) => (
                 <option key={day.id} value={day.id}>
-                  Day {day.dayNumber < 10 ? `0${day.dayNumber}` : day.dayNumber}: {day.topic}
+                  [{day.sprintName || 'General'}] Day {day.dayNumber < 10 ? `0${day.dayNumber}` : day.dayNumber}: {day.topic}
                 </option>
               ))
             )}

@@ -1,8 +1,8 @@
-# StreakCode — 21-Day DSA Habit Challenge
+# DSA Sprint — Curated Coding Tracks
 
 #A DSA HABIT
 
-StreakCode is a modern, full-stack web application designed to help developers build a daily DSA problem-solving habit through curated curriculums, consistency streaks, visual contribution graphs, and leaderboards.
+DSA Sprint is a modern, full-stack web application designed to help developers build a daily DSA problem-solving habit through curated curriculums, consistency streaks, visual contribution graphs, and leaderboards.
 
 ## Tech Stack
 - **Framework**: Next.js 15 (App Router, Server Actions, Turbopack)
@@ -15,7 +15,7 @@ StreakCode is a modern, full-stack web application designed to help developers b
 
 ## Project Structure
 ```text
-mulearn-dsa-sprint/
+dsa-sprint/
 ├── supabase/
 │   └── schema.sql                # Complete database tables, RLS, and streak triggers
 ├── src/
