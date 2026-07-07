@@ -1,6 +1,6 @@
 # DSA Sprint — Curated Coding Tracks
 
-#A DSA HABIT
+#A DSA SPRINT
 
 DSA Sprint is a modern, full-stack web application designed to help developers build a daily DSA problem-solving habit through curated curriculums, consistency streaks, visual contribution graphs, and leaderboards.
 
