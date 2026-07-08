@@ -1,189 +1,336 @@
-import Link from 'next/link'
-import { Flame, Code, Users, Calendar, Trophy, ArrowRight, CheckCircle2, Terminal, Target, Zap, ChevronRight } from 'lucide-react'
 import { getSessionUser } from '@/utils/supabase/user'
+import { createClient } from '@/utils/supabase/server'
+import { redirect } from 'next/navigation'
+import Link from 'next/link'
+import { leaveSprint } from '@/app/actions/sprints'
 
-const FEATURED_SPRINTS = [
-  {
-    title: "21-Day DSA Habit Builder",
-    desc: "Our flagship track designed to establish consistency. Step-by-step progression from basic arrays to complex graphs.",
-    days: 21,
-    difficulty: "Mixed",
-    tag: "Recommended"
-  },
-  {
-    title: "Blind 75 Interview Prep",
-    desc: "Master the 75 essential LeetCode questions most frequently asked by Google, Meta, and Amazon.",
-    days: 15,
-    difficulty: "Medium Focus",
-    tag: "High Yield"
-  },
-  {
-    title: "7-Day DP Intensive",
-    desc: "Conquer your fear of Dynamic Programming. Covers memoization, tabulations, grids, and string alignment.",
-    days: 7,
-    difficulty: "Hard Focus",
-    tag: "Specialized"
-  }
-]
+interface DashboardSearchParams {
+  sprint?: string
+}
 
-export default async function LandingPage() {
+export default async function DashboardPage(props: { searchParams: Promise<DashboardSearchParams> }) {
+  const searchParams = await props.searchParams
+  const selectedSprintSlug = searchParams.sprint
+
   const user = await getSessionUser()
+  if (!user) {
+    redirect('/login')
+  }
+
+  let dbStats = {
+    score: 0,
+    streak: 0,
+    longestStreak: 0,
+    rank: 1
+  }
+
+  let allSprints: any[] = []
+  let userEnrollments: any[] = []
+  let activeSprintDays: any[] = []
+  let completedDayIds: string[] = []
+  let isMock = false
+
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
+  const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+
+  if (!supabaseUrl || !supabaseKey || supabaseUrl.includes('placeholder') || supabaseKey.includes('placeholder')) {
+    isMock = true
+    dbStats = {
+      score: 40,
+      streak: 4,
+      longestStreak: 8,
+      rank: 2
+    }
+    allSprints = [
+      { id: 'mock-sprint-1', name: '21-Day DSA Habit Builder', slug: 'dsa-habit-21', description: 'Build consistency with 21 days of step-by-step topics, from arrays and hash maps to graphs and DP.', durationDays: 21 },
+      { id: 'mock-sprint-2', name: 'Blind 75 Interview Prep', slug: 'blind-75', description: 'Master the high-frequency LeetCode questions most commonly asked in technical interviews.', durationDays: 15 }
+    ]
+    userEnrollments = [
+      { sprintId: 'mock-sprint-1', sprints: allSprints[0] }
+    ]
+    activeSprintDays = Array.from({ length: 21 }, (_, i) => ({
+      id: `mock-day-${i + 1}`,
+      dayNumber: i + 1,
+      topic: [
+        "Arrays & Hashing", "Two Pointers", "Sliding Window", "Stacks & Queues", "Linked Lists",
+        "Binary Search", "Recursion & Backtracking", "Trees: DFS & BFS", "Binary Search Trees", "Heaps / Priority Queues",
+        "Hashing Advanced", "Graphs: DFS & BFS", "Graphs: Matrix Paths", "Dynamic Programming (1D)", "Dynamic Programming (2D)",
+        "Greedy Algorithms", "Intervals", "Tries", "Bit Manipulation", "Advanced Graphs", "Grand Finale"
+      ][i] || 'DSA Practice',
+      description: `Practice problems for Day ${i + 1}`
+    }))
+    completedDayIds = [`mock-day-1`, `mock-day-2`, `mock-day-3`, `mock-day-4`]
+  } else {
+    try {
+      const supabase = await createClient()
+
+      // Fetch leaderboard stats
+      const { data: leadData } = await supabase
+        .from('leaderboard')
+        .select('score, streak, longestStreak')
+        .eq('userId', user.id)
+        .single()
+
+      if (leadData) {
+        dbStats.score = leadData.score
+        dbStats.streak = leadData.streak
+        dbStats.longestStreak = leadData.longestStreak
+      }
+
+      // Fetch rank
+      const { count } = await supabase
+        .from('leaderboard')
+        .select('*', { count: 'exact', head: true })
+        .gt('score', dbStats.score)
+      dbStats.rank = (count || 0) + 1
+
+      // Fetch user enrollments
+      const { data: enrollmentsData } = await supabase
+        .from('user_sprints')
+        .select(`
+          sprintId,
+          enrolledAt,
+          completedAt,
+          sprints (
+            id,
+            name,
+            slug,
+            description,
+            durationDays
+          )
+        `)
+        .eq('userId', user.id)
+      userEnrollments = enrollmentsData || []
+
+      // Determine active enrollment
+      let activeEnrollment = null
+      if (userEnrollments.length > 0) {
+        if (selectedSprintSlug) {
+          activeEnrollment = userEnrollments.find(e => e.sprints?.slug === selectedSprintSlug)
+        }
+        if (!activeEnrollment) {
+          activeEnrollment = userEnrollments[0]
+        }
+      }
+
+      // Fetch days for active sprint
+      if (activeEnrollment && activeEnrollment.sprints) {
+        const sprintId = activeEnrollment.sprints.id
+        const { data: days } = await supabase
+          .from('challengedays')
+          .select('*')
+          .eq('sprintId', sprintId)
+          .order('dayNumber', { ascending: true })
+        activeSprintDays = days || []
+
+        if (activeSprintDays.length > 0) {
+          const dayIds = activeSprintDays.map(d => d.id)
+          const { data: subs } = await supabase
+            .from('submissions')
+            .select('challengeDayId')
+            .eq('userId', user.id)
+            .eq('status', 'approved')
+            .in('challengeDayId', dayIds)
+          completedDayIds = subs ? subs.map((s: any) => s.challengeDayId) : []
+        }
+      }
+    } catch (err) {
+      console.error('Failed to load active track roadmap:', err)
+      isMock = true
+    }
+  }
+
+  // Find active sprint detail
+  const currentSprint = userEnrollments.find(e => {
+    if (selectedSprintSlug) return e.sprints?.slug === selectedSprintSlug
+    return true
+  })?.sprints || userEnrollments[0]?.sprints
+
+  // Group active days by weeks (7 days per week)
+  const weeksMap: { [key: number]: any[] } = {}
+  activeSprintDays.forEach(day => {
+    const weekNum = Math.ceil(day.dayNumber / 7)
+    if (!weeksMap[weekNum]) {
+      weeksMap[weekNum] = []
+    }
+    weeksMap[weekNum].push(day)
+  })
+
+  // Determine current active day number
+  let currentDayNumber = 1
+  let nextDayToSolve: any = null
+
+  if (activeSprintDays.length > 0) {
+    const completedDaysSet = new Set(
+      activeSprintDays.filter(d => completedDayIds.includes(d.id)).map(d => d.dayNumber)
+    )
+
+    let firstUnsolvedFound = false
+    for (const d of activeSprintDays) {
+      const isCompleted = completedDayIds.includes(d.id)
+      const isUnlocked = d.dayNumber === 1 || 
+                         (d.unlockDay ? completedDaysSet.has(d.unlockDay) : completedDaysSet.has(d.dayNumber - 1))
+
+      if (!isCompleted && isUnlocked && !firstUnsolvedFound) {
+        currentDayNumber = d.dayNumber
+        nextDayToSolve = d
+        firstUnsolvedFound = true
+      }
+    }
+
+    if (!firstUnsolvedFound) {
+      currentDayNumber = activeSprintDays.length
+      nextDayToSolve = activeSprintDays[activeSprintDays.length - 1]
+    }
+  }
 
   return (
-    <div className="relative isolate overflow-hidden bg-black bg-dot-grid flex-1 flex flex-col justify-between">
-      {/* Glow effects */}
-      <div
-        className="absolute inset-x-0 -top-40 -z-10 transform-gpu overflow-hidden blur-3xl sm:-top-80"
-        aria-hidden="true"
-      >
-        <div
-          className="relative left-[calc(50%-11rem)] aspect-1155/678 w-[36rem] -translate-x-1/2 rotate-[30deg] bg-gradient-to-tr from-orange-500/10 to-zinc-500/10 opacity-30 sm:left-[calc(50%-30rem)] sm:w-[72rem]"
-          style={{
-            clipPath:
-              'polygon(74.1% 44.1%, 100% 61.6%, 97.5% 26.9%, 85.5% 0.1%, 80.7% 2%, 72.5% 32.5%, 60.2% 62.4%, 52.4% 68.1%, 47.5% 58.3%, 45.2% 34.5%, 27.5% 76.7%, 0.1% 64.9%, 17.9% 100%, 27.6% 76.8%, 76.1% 97.7%, 74.1% 44.1%)',
-          }}
-        />
-      </div>
-
-      <div className="mx-auto max-w-7xl px-6 lg:px-8 py-20 sm:py-32 flex-1">
-        {/* Monospace Badge */}
-        <div className="flex justify-center mb-6">
-          <div className="inline-flex items-center gap-2 rounded-full border border-zinc-800 bg-zinc-950 px-3 py-1 text-xs font-mono text-zinc-400">
-            <Terminal className="h-3 w-3 text-orange-500" />
-            <span>git commit -m &quot;start dsa sprint&quot;</span>
-          </div>
+    <div className="mx-auto max-w-4xl px-4 py-8 flex-1 flex flex-col gap-8 font-mono">
+      {isMock && (
+        <div className="border border-blue-900 bg-blue-950/10 p-3 text-xs text-blue-400">
+          [demo mode] Connect Supabase to start tracking real progress.
         </div>
+      )}
 
-        {/* Hero Section */}
-        <div className="text-center max-w-3xl mx-auto">
-          <h1 className="text-4xl font-extrabold tracking-tight text-white sm:text-6xl font-sans">
-            Conquer DSA with <span className="text-transparent bg-clip-text bg-gradient-to-r from-orange-400 to-amber-500">Curated Sprints</span>
+      {/* Header & Stats Banner */}
+      <div className="border-b border-zinc-800 pb-5 flex flex-col sm:flex-row sm:items-baseline justify-between gap-2">
+        <div>
+          <h1 className="text-base font-bold text-white uppercase tracking-tight">
+            {userEnrollments.length > 0 ? currentSprint.name : 'DSA Curriculums'}
           </h1>
-          <p className="mt-6 text-lg leading-8 text-zinc-400">
-            Establish a consistent problem-solving habit. Choose a curated coding sprint, upload your solution log, and watch your daily streak grow. Fully self-paced, frictionless, and automated.
+          <p className="text-xs text-zinc-500 mt-1">
+            {userEnrollments.length > 0 
+              ? currentSprint.description 
+              : 'You are not enrolled in any coding track yet.'}
           </p>
-          <div className="mt-10 flex items-center justify-center gap-x-6">
-            {user ? (
-              <Link
-                href="/dashboard"
-                className="group flex items-center gap-2 rounded-md bg-white px-5 py-3 text-sm font-semibold text-black hover:bg-zinc-200 transition-all font-mono"
-              >
-                Go to Dashboard
-                <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-1" />
-              </Link>
-            ) : (
-              <>
-                <Link
-                  href="/signup"
-                  className="group flex items-center gap-2 rounded-md bg-white px-5 py-3 text-sm font-semibold text-black hover:bg-zinc-200 transition-all font-mono"
-                >
-                  Start a Free Sprint
-                  <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-1" />
-                </Link>
-                <Link
-                  href="/login"
-                  className="text-sm font-semibold leading-6 text-zinc-300 hover:text-white"
-                >
-                  Sign In <span aria-hidden="true">→</span>
-                </Link>
-              </>
-            )}
-          </div>
         </div>
 
-        {/* Sprints Section */}
-        <div className="mx-auto mt-24 max-w-5xl sm:mt-32">
-          <div className="text-center mb-12">
-            <h2 className="text-2xl font-bold tracking-tight text-white sm:text-3xl font-mono flex items-center justify-center gap-2">
-              <Target className="h-6 w-6 text-orange-500" />
-              Available Sprints
-            </h2>
-            <p className="mt-2 text-sm text-zinc-450">
-              Each sprint features locked topics unlocked day-by-day. Join one to begin.
-            </p>
+        {userEnrollments.length > 0 && (
+          <div className="text-[11px] text-zinc-400 flex gap-4">
+            <span>Streak: <strong className="text-blue-500">{dbStats.streak}d</strong></span>
+            <span>Score: <strong className="text-white">{dbStats.score}pts</strong></span>
+            <span>Rank: <strong className="text-white">#{dbStats.rank}</strong></span>
           </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            {FEATURED_SPRINTS.map((sprint) => (
-              <div
-                key={sprint.title}
-                className="rounded-xl border border-zinc-900 bg-zinc-950/40 p-6 flex flex-col justify-between hover:border-zinc-800 transition-all"
-              >
-                <div>
-                  <div className="flex items-center justify-between mb-4">
-                    <span className="text-[10px] font-mono font-bold text-orange-500 uppercase tracking-wider bg-orange-950/20 px-2 py-0.5 rounded border border-orange-900/30">
-                      {sprint.tag}
-                    </span>
-                    <span className="text-[10px] font-mono text-zinc-500">
-                      {sprint.days} Days
-                    </span>
-                  </div>
-                  <h3 className="text-base font-bold text-white font-mono">{sprint.title}</h3>
-                  <p className="mt-2.5 text-xs text-zinc-450 leading-relaxed">{sprint.desc}</p>
-                </div>
-                <div className="mt-6 pt-4 border-t border-zinc-900 flex items-center justify-between">
-                  <span className="text-[10px] font-mono text-zinc-550">
-                    Difficulty: <span className="text-zinc-400">{sprint.difficulty}</span>
-                  </span>
-                  <Link
-                    href={user ? "/dashboard" : "/signup"}
-                    className="text-[11px] font-mono font-semibold text-white hover:text-orange-400 flex items-center gap-0.5 transition-colors"
-                  >
-                    View Sprint <ChevronRight className="h-3 w-3" />
-                  </Link>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-
-        {/* Features Grid */}
-        <div className="mx-auto mt-24 max-w-5xl sm:mt-32">
-          <div className="grid grid-cols-1 gap-8 sm:grid-cols-3">
-            <div className="rounded-xl border border-zinc-900 bg-zinc-950/20 p-8">
-              <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-zinc-900 border border-zinc-850">
-                <Zap className="h-5 w-5 text-orange-500" />
-              </div>
-              <h3 className="mt-4 text-sm font-bold text-white font-mono">Instant Auto-Approval</h3>
-              <p className="mt-2 text-xs text-zinc-450 leading-relaxed">
-                No waiting for manual reviews. Log your profile or paste a solution, and the platform verifies your progress immediately.
-              </p>
-            </div>
-            <div className="rounded-xl border border-zinc-900 bg-zinc-950/20 p-8">
-              <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-zinc-900 border border-zinc-850">
-                <Flame className="h-5 w-5 text-orange-500" />
-              </div>
-              <h3 className="mt-4 text-sm font-bold text-white font-mono">Streak Mechanics</h3>
-              <p className="mt-2 text-xs text-zinc-450 leading-relaxed">
-                Consistency is key. Build up your daily streak, accumulate XP score points, and maintain your commitment calendar.
-              </p>
-            </div>
-            <div className="rounded-xl border border-zinc-900 bg-zinc-950/20 p-8">
-              <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-zinc-900 border border-zinc-850">
-                <Trophy className="h-5 w-5 text-orange-500" />
-              </div>
-              <h3 className="mt-4 text-sm font-bold text-white font-mono">Global Leaderboard</h3>
-              <p className="mt-2 text-xs text-zinc-450 leading-relaxed">
-                Stack up against other software engineers. Gain standings based on problems completed and consistent streak longevity.
-              </p>
-            </div>
-          </div>
-        </div>
+        )}
       </div>
 
-      {/* Footer */}
-      <footer className="border-t border-zinc-900 bg-zinc-950/50 py-8">
-        <div className="mx-auto max-w-7xl px-6 lg:px-8 flex flex-col sm:flex-row items-center justify-between gap-4 text-xs font-mono text-zinc-500">
-          <div>
-            &copy; 2026 DSASprint. All rights reserved.
+      {/* Active Track View */}
+      {userEnrollments.length === 0 ? (
+        <div className="border border-zinc-850 p-6 text-center text-xs">
+          <p className="text-zinc-500">No active tracks. Go to the tracks page to choose one and begin.</p>
+          <Link
+            href="/tracks"
+            className="mt-4 inline-block border border-zinc-800 bg-zinc-950 px-3 py-1.5 rounded text-[11px] text-zinc-350 hover:text-white transition-colors"
+          >
+            Explore Tracks
+          </Link>
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-8 items-start">
+          {/* Left Column: Progress Checklist */}
+          <div className="md:col-span-2 space-y-6">
+            {Object.keys(weeksMap).map(weekStr => {
+              const weekNum = parseInt(weekStr)
+              const weekDays = weeksMap[weekNum]
+              return (
+                <div key={weekNum} className="space-y-2">
+                  <h3 className="text-xs font-bold text-zinc-400 uppercase tracking-wider border-b border-zinc-900 pb-1">
+                    Week {weekNum}
+                  </h3>
+                  <div className="space-y-1.5 text-xs">
+                    {weekDays.map(day => {
+                      const isCompleted = completedDayIds.includes(day.id)
+                      const completedDaysSet = new Set(
+                        activeSprintDays.filter(d => completedDayIds.includes(d.id)).map(d => d.dayNumber)
+                      )
+                      const isUnlocked = day.dayNumber === 1 || 
+                                         (day.unlockDay ? completedDaysSet.has(day.unlockDay) : completedDaysSet.has(day.dayNumber - 1))
+
+                      const isCurrent = day.dayNumber === currentDayNumber && !isCompleted && isUnlocked
+
+                      let marker = "○"
+                      let itemClass = "text-zinc-500"
+                      let linkClass = "pointer-events-none"
+
+                      if (isCompleted) {
+                        marker = "✓"
+                        itemClass = "text-zinc-300"
+                        linkClass = "hover:text-blue-500 hover:underline"
+                      } else if (isUnlocked) {
+                        itemClass = isCurrent ? "text-blue-400 font-bold" : "text-zinc-400"
+                        linkClass = "hover:text-blue-500 hover:underline"
+                      }
+
+                      return (
+                        <div key={day.id} className={`flex items-baseline gap-2.5 ${itemClass}`}>
+                          <span className="w-4 select-none text-[10px] font-bold text-center">
+                            {marker}
+                          </span>
+                          {isUnlocked ? (
+                            <Link
+                              href={`/challenge?sprint=${currentSprint.slug}&day=${day.dayNumber}`}
+                              className={`flex-1 transition-colors ${linkClass}`}
+                            >
+                              Day {day.dayNumber < 10 ? `0${day.dayNumber}` : day.dayNumber} - {day.topic}
+                            </Link>
+                          ) : (
+                            <span className="flex-1 opacity-40">
+                              Day {day.dayNumber < 10 ? `0${day.dayNumber}` : day.dayNumber} - {day.topic} [Locked]
+                            </span>
+                          )}
+                        </div>
+                      )
+                    })}
+                  </div>
+                </div>
+              )
+            })}
           </div>
-          <div className="flex gap-4">
-            <span className="hover:text-zinc-300 cursor-pointer">Syllabus</span>
-            <span className="hover:text-zinc-300 cursor-pointer">Rules</span>
-            <span className="hover:text-zinc-300 cursor-pointer">Supabase Stack</span>
+
+          {/* Right Column: Track switching / options */}
+          <div className="space-y-6">
+            {userEnrollments.length > 1 && (
+              <div className="border border-zinc-850 p-4 rounded bg-zinc-950/20 space-y-2.5">
+                <div className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest">Switch Tracks</div>
+                <div className="space-y-1.5 text-xs">
+                  {userEnrollments.map(enr => {
+                    const isActive = enr.sprints.slug === currentSprint.slug
+                    return (
+                      <Link
+                        key={enr.sprintId}
+                        href={`/?sprint=${enr.sprints.slug}`}
+                        className={`block p-1.5 rounded transition-colors ${
+                          isActive 
+                            ? 'bg-blue-950/25 border border-blue-900/40 text-blue-400 font-bold'
+                            : 'text-zinc-400 hover:text-zinc-200 border border-transparent'
+                        }`}
+                      >
+                        {enr.sprints.name}
+                      </Link>
+                    )
+                  })}
+                </div>
+              </div>
+            )}
+
+            <div className="border border-zinc-850 p-4 rounded bg-zinc-950/20 space-y-3">
+              <div className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest">Track Actions</div>
+              <form action={async () => {
+                'use server'
+                await leaveSprint(currentSprint.id)
+                redirect('/tracks')
+              }}>
+                <button
+                  type="submit"
+                  className="w-full text-left text-xs text-red-400 hover:text-red-300 hover:underline cursor-pointer"
+                >
+                  Leave this track
+                </button>
+              </form>
+            </div>
           </div>
         </div>
-      </footer>
+      )}
     </div>
   )
 }

@@ -154,13 +154,13 @@ export default function ParticipantManager({ initialUsers }: ParticipantManagerP
       {/* Search and Filters Bar */}
       <div className="flex flex-col md:flex-row gap-4 items-center justify-between">
         <div className="relative w-full md:w-96">
-          <Search className="absolute left-3 top-2.5 h-4 w-4 text-zinc-500" />
+          <Search className="absolute left-3 top-2.5 h-4 w-4 text-zinc-550" />
           <input
             type="text"
             placeholder="Search by name or email..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full rounded-lg border border-zinc-900 bg-zinc-950/40 pl-10 pr-4 py-2 text-sm text-white placeholder-zinc-500 focus:border-zinc-700 focus:outline-none focus:ring-1 focus:ring-zinc-700 font-mono"
+            className="w-full rounded border border-zinc-850 bg-zinc-950 px-8 py-1.5 text-zinc-205 placeholder-zinc-550 focus:border-zinc-700 focus:outline-none focus:ring-1 focus:ring-zinc-700 font-mono"
           />
         </div>
 
@@ -169,10 +169,10 @@ export default function ParticipantManager({ initialUsers }: ParticipantManagerP
             <button
               key={type}
               onClick={() => setFilterType(type)}
-              className={`px-3.5 py-1.5 rounded-lg border text-xs font-semibold font-mono transition-all cursor-pointer ${
+              className={`px-3 py-1 rounded border text-xs font-semibold font-mono transition-all cursor-pointer ${
                 filterType === type
-                  ? 'border-orange-500 bg-orange-500/10 text-white'
-                  : 'border-zinc-900 bg-zinc-950/20 text-zinc-400 hover:text-zinc-300'
+                  ? 'border-blue-500/40 bg-blue-950/15 text-blue-400'
+                  : 'border-zinc-850 bg-zinc-950/20 text-zinc-400 hover:text-zinc-300'
               }`}
             >
               {type === 'all' && 'ALL USERS'}
@@ -185,29 +185,29 @@ export default function ParticipantManager({ initialUsers }: ParticipantManagerP
       </div>
 
       {/* Users Table */}
-      <div className="rounded-xl border border-zinc-900 bg-zinc-950/20 overflow-x-auto">
+      <div className="rounded border border-zinc-850 bg-zinc-950/20 overflow-x-auto">
         <table className="w-full border-collapse text-left font-mono">
           <thead>
-            <tr className="border-b border-zinc-900 bg-zinc-950/40 text-[10px] text-zinc-500 uppercase tracking-wider">
-              <th className="px-6 py-4 font-semibold">User</th>
-              <th className="px-6 py-4 font-semibold text-center">Score</th>
-              <th className="px-6 py-4 font-semibold text-center">Current Streak</th>
-              <th className="px-6 py-4 font-semibold text-center">Longest Streak</th>
-              <th className="px-6 py-4 font-semibold text-center">Submissions</th>
-              <th className="px-6 py-4 font-semibold text-right">Actions</th>
+            <tr className="border-b border-zinc-850 bg-zinc-950/40 text-[10px] text-zinc-500 uppercase tracking-wider">
+              <th className="px-4 py-2.5 font-semibold">User</th>
+              <th className="px-4 py-2.5 font-semibold text-center">Score</th>
+              <th className="px-4 py-2.5 font-semibold text-center">Current Streak</th>
+              <th className="px-4 py-2.5 font-semibold text-center">Longest Streak</th>
+              <th className="px-4 py-2.5 font-semibold text-center">Submissions</th>
+              <th className="px-4 py-2.5 font-semibold text-right">Actions</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-zinc-900/40 text-xs">
             {sortedUsers.length === 0 ? (
               <tr>
-                <td colSpan={6} className="px-6 py-10 text-center text-zinc-500 italic">
+                <td colSpan={6} className="px-4 py-8 text-center text-zinc-500 italic">
                   No participants matched the filters.
                 </td>
               </tr>
             ) : (
               sortedUsers.map((user) => (
-                <tr key={user.id} className={`hover:bg-zinc-900/10 transition-colors ${user.isBanned ? 'bg-red-950/5 text-zinc-500' : 'text-zinc-300'}`}>
-                  <td className="px-6 py-4">
+                <tr key={user.id} className={`hover:bg-zinc-900/20 transition-colors ${user.isBanned ? 'bg-red-950/5 text-zinc-500' : 'text-zinc-300'}`}>
+                  <td className="px-4 py-3">
                     <div className="flex flex-col">
                       <span className="font-semibold text-white flex items-center gap-1.5">
                         {user.name}
@@ -220,27 +220,27 @@ export default function ParticipantManager({ initialUsers }: ParticipantManagerP
                       <span className="text-[10px] text-zinc-500">{user.email}</span>
                     </div>
                   </td>
-                  <td className="px-6 py-4 text-center font-bold text-white">
+                  <td className="px-4 py-3 text-center font-bold text-white">
                     {user.leaderboard?.score || 0} pts
                   </td>
-                  <td className="px-6 py-4 text-center">
-                    <span className="inline-flex items-center gap-1 text-orange-400">
+                  <td className="px-4 py-3 text-center">
+                    <span className="inline-flex items-center gap-1 text-blue-400 font-bold">
                       <Flame className="h-3.5 w-3.5" />
                       {user.leaderboard?.streak || 0}
                     </span>
                   </td>
-                  <td className="px-6 py-4 text-center text-zinc-400">
+                  <td className="px-4 py-3 text-center text-zinc-400">
                     {user.leaderboard?.longestStreak || 0}
                   </td>
-                  <td className="px-6 py-4 text-center text-zinc-400">
+                  <td className="px-4 py-3 text-center text-zinc-400">
                     {user.submissionsCount}
                   </td>
-                  <td className="px-6 py-4 text-right">
+                  <td className="px-4 py-3 text-right">
                     <div className="flex items-center justify-end gap-2">
                       {/* Give Bonus Points */}
                       <button
                         onClick={() => setShowBonusModal(user.id)}
-                        className="p-1.5 rounded bg-zinc-900 border border-zinc-800 hover:border-zinc-700 text-emerald-400 hover:bg-emerald-500/5 transition-all cursor-pointer"
+                        className="p-1.5 rounded bg-zinc-900 border border-zinc-850 hover:border-zinc-700 text-blue-400 hover:bg-blue-500/5 transition-all cursor-pointer"
                         title="Give Bonus Points"
                       >
                         <Plus className="h-3.5 w-3.5" />
@@ -249,7 +249,7 @@ export default function ParticipantManager({ initialUsers }: ParticipantManagerP
                       {/* Reset Streak */}
                       <button
                         onClick={() => handleResetStreak(user.id)}
-                        className="p-1.5 rounded bg-zinc-900 border border-zinc-800 hover:border-zinc-700 text-amber-500 hover:bg-amber-500/5 transition-all cursor-pointer"
+                        className="p-1.5 rounded bg-zinc-900 border border-zinc-850 hover:border-zinc-700 text-zinc-400 hover:bg-zinc-800 transition-all cursor-pointer"
                         title="Reset Streak"
                       >
                         <RefreshCw className="h-3.5 w-3.5" />
@@ -260,7 +260,7 @@ export default function ParticipantManager({ initialUsers }: ParticipantManagerP
                         onClick={() => handleBanToggle(user.id, user.isBanned)}
                         className={`p-1.5 rounded border transition-all cursor-pointer ${
                           user.isBanned
-                            ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-400 hover:bg-emerald-500/20'
+                            ? 'bg-blue-500/10 border-blue-500/20 text-blue-400 hover:bg-blue-500/20'
                             : 'bg-red-500/10 border-red-500/20 text-red-400 hover:bg-red-500/20'
                         }`}
                         title={user.isBanned ? 'Unban User' : 'Ban User'}
@@ -278,10 +278,10 @@ export default function ParticipantManager({ initialUsers }: ParticipantManagerP
 
       {/* Bonus Points Modal */}
       {showBonusModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
-          <div className="w-full max-w-sm rounded-xl border border-zinc-900 bg-zinc-950 p-6 shadow-2xl space-y-4 font-mono">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4">
+          <div className="w-full max-w-sm rounded border border-zinc-850 bg-zinc-950 p-6 space-y-4 font-mono">
             <div className="flex items-center gap-2 border-b border-zinc-900 pb-3">
-              <Award className="h-5 w-5 text-orange-500" />
+              <Award className="h-5 w-5 text-blue-500" />
               <h3 className="text-sm font-semibold text-white">AWARD BONUS POINTS</h3>
             </div>
 
@@ -295,7 +295,7 @@ export default function ParticipantManager({ initialUsers }: ParticipantManagerP
                 type="number"
                 value={bonusVal}
                 onChange={(e) => setBonusVal(e.target.value)}
-                className="w-full rounded border border-zinc-900 bg-zinc-950 px-3 py-2 text-xs text-white focus:border-zinc-700 focus:outline-none"
+                className="w-full rounded border border-zinc-850 bg-zinc-950 px-3 py-2 text-xs text-white focus:border-zinc-700 focus:outline-none"
               />
             </div>
 
@@ -311,7 +311,7 @@ export default function ParticipantManager({ initialUsers }: ParticipantManagerP
                   setBonusVal('10')
                   setModalError('')
                 }}
-                className="rounded border border-zinc-900 bg-zinc-950 px-3.5 py-1.5 text-xs text-zinc-400 hover:text-white"
+                className="rounded border border-zinc-850 bg-zinc-950 px-3.5 py-1.5 text-xs text-zinc-400 hover:text-white"
               >
                 CANCEL
               </button>

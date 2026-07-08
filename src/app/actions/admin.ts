@@ -580,30 +580,33 @@ export async function giveBonusPoints(userId: string, bonusPoints: number) {
   return { success: true }
 }
 
-export async function createContest(formData: FormData) {
+export async function createSprint(formData: FormData) {
   const supabase = await createClient()
   if (!(await checkAdmin(supabase))) {
     return { error: 'Unauthorized. Admin role required.' }
   }
 
   const name = formData.get('name') as string
-  const startTime = formData.get('startTime') as string
-  const endTime = formData.get('endTime') as string
-  const contestLink = formData.get('contestLink') as string
-  const contestType = formData.get('contestType') as 'Codeforces' | 'HackerRank' | 'External'
+  const description = formData.get('description') as string
+  const slug = formData.get('slug') as string
+  const durationDaysStr = formData.get('durationDays') as string
 
-  if (!name || !startTime || !endTime || !contestLink || !contestType) {
+  if (!name || !description || !slug || !durationDaysStr) {
     return { error: 'All fields are required' }
   }
 
+  const durationDays = parseInt(durationDaysStr, 10)
+  if (isNaN(durationDays) || durationDays <= 0) {
+    return { error: 'Duration days must be a positive number' }
+  }
+
   const { error } = await supabase
-    .from('contests')
+    .from('sprints')
     .insert({
       name,
-      startTime: new Date(startTime).toISOString(),
-      endTime: new Date(endTime).toISOString(),
-      contestLink,
-      contestType
+      description,
+      slug,
+      durationDays
     })
 
   if (error) {
@@ -611,81 +614,9 @@ export async function createContest(formData: FormData) {
   }
 
   revalidatePath('/admin')
-  revalidatePath('/dashboard')
+  revalidatePath('/tracks')
+  revalidatePath('/')
 
   return { success: true }
 }
 
-export async function deleteContest(id: string) {
-  const supabase = await createClient()
-  if (!(await checkAdmin(supabase))) {
-    return { error: 'Unauthorized. Admin role required.' }
-  }
-
-  const { error } = await supabase
-    .from('contests')
-    .delete()
-    .eq('id', id)
-
-  if (error) {
-    return { error: error.message }
-  }
-
-  revalidatePath('/admin')
-  revalidatePath('/dashboard')
-
-  return { success: true }
-}
-
-export async function createAnnouncement(formData: FormData) {
-  const supabase = await createClient()
-  if (!(await checkAdmin(supabase))) {
-    return { error: 'Unauthorized. Admin role required.' }
-  }
-
-  const title = formData.get('title') as string
-  const content = formData.get('content') as string
-  const priority = formData.get('priority') as 'Info' | 'Warning' | 'Important'
-
-  if (!title || !content || !priority) {
-    return { error: 'All fields are required' }
-  }
-
-  const { error } = await supabase
-    .from('announcements')
-    .insert({
-      title,
-      content,
-      priority
-    })
-
-  if (error) {
-    return { error: error.message }
-  }
-
-  revalidatePath('/admin')
-  revalidatePath('/dashboard')
-
-  return { success: true }
-}
-
-export async function deleteAnnouncement(id: string) {
-  const supabase = await createClient()
-  if (!(await checkAdmin(supabase))) {
-    return { error: 'Unauthorized. Admin role required.' }
-  }
-
-  const { error } = await supabase
-    .from('announcements')
-    .delete()
-    .eq('id', id)
-
-  if (error) {
-    return { error: error.message }
-  }
-
-  revalidatePath('/admin')
-  revalidatePath('/dashboard')
-
-  return { success: true }
-}

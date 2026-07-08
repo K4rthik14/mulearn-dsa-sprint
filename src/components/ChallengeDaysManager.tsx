@@ -216,7 +216,7 @@ export default function ChallengeDaysManager({ challengeDays, sprints }: Challen
                       <td className="whitespace-nowrap px-6 py-4 text-xs font-semibold font-mono text-zinc-400">
                         {day.sprintName || 'Unknown Sprint'}
                       </td>
-                      <td className="whitespace-nowrap px-6 py-4 text-sm font-bold font-mono text-orange-500">
+                      <td className="whitespace-nowrap px-6 py-4 text-sm font-bold font-mono text-blue-500">
                         Day {day.dayNumber < 10 ? `0${day.dayNumber}` : day.dayNumber}
                       </td>
                       <td className="px-6 py-4">
@@ -275,7 +275,7 @@ export default function ChallengeDaysManager({ challengeDays, sprints }: Challen
           <div className="relative w-full max-w-md rounded-xl border border-zinc-850 bg-zinc-950 p-6 shadow-2xl z-10">
             <div className="flex items-center justify-between border-b border-zinc-900 pb-3 mb-4">
               <h3 className="text-sm font-bold font-mono text-white flex items-center gap-2">
-                <Plus className="h-4.5 w-4.5 text-orange-500" />
+                <Plus className="h-4.5 w-4.5 text-blue-500" />
                 CREATE CHALLENGE DAY
               </h3>
               <button 
