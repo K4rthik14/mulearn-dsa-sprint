@@ -69,7 +69,7 @@ export default function ResourcesManager({ challengeDays, initialResources }: Re
       case 'Documentation':
         return <BookOpen className="h-4 w-4 text-emerald-400" />
       case 'PDF':
-        return <File className="h-4 w-4 text-amber-500" />
+        return <File className="h-4 w-4 text-zinc-400" />
       case 'Playlist':
         return <PlaySquare className="h-4 w-4 text-purple-400" />
       default:
@@ -86,7 +86,7 @@ export default function ResourcesManager({ challengeDays, initialResources }: Re
       case 'Documentation':
         return 'border-emerald-500/20 bg-emerald-500/10 text-emerald-400'
       case 'PDF':
-        return 'border-amber-500/20 bg-amber-500/10 text-amber-400'
+        return 'border-zinc-700 bg-zinc-900/50 text-zinc-400'
       case 'Playlist':
         return 'border-purple-500/20 bg-purple-500/10 text-purple-400'
       default:
@@ -328,7 +328,7 @@ export default function ResourcesManager({ challengeDays, initialResources }: Re
           <div className="relative w-full max-w-md rounded-xl border border-zinc-850 bg-zinc-950 p-6 shadow-2xl z-10">
             <div className="flex items-center justify-between border-b border-zinc-900 pb-3 mb-4">
               <h3 className="text-sm font-bold font-mono text-white flex items-center gap-2">
-                <Plus className="h-4.5 w-4.5 text-orange-500" />
+                <Plus className="h-4.5 w-4.5 text-blue-500" />
                 ADD RESOURCE TO DAY {selectedDayInfo.dayNumber}
               </h3>
               <button 

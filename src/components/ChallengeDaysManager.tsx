@@ -226,7 +226,7 @@ export default function ChallengeDaysManager({ challengeDays, sprints }: Challen
                       <td className="whitespace-nowrap px-6 py-4">
                         <span className={`inline-flex items-center rounded px-2.5 py-0.5 text-[10px] font-mono font-medium border ${
                           difficulty === 'Easy' ? 'border-emerald-500/20 bg-emerald-500/10 text-emerald-400' :
-                          difficulty === 'Medium' ? 'border-amber-500/20 bg-amber-500/10 text-amber-450' :
+                          difficulty === 'Medium' ? 'border-yellow-500/20 bg-yellow-500/10 text-yellow-400' :
                           'border-red-500/20 bg-red-500/10 text-red-400'
                         }`}>
                           {difficulty}

@@ -93,7 +93,7 @@ export default async function ProfilePage() {
 
       // For each sprint, load days and user completion
       for (const enr of enrollList) {
-        const sprint = enr.sprints
+        const sprint = Array.isArray(enr.sprints) ? enr.sprints[0] : (enr.sprints as any)
         if (!sprint) continue
 
         const { data: days } = await supabase

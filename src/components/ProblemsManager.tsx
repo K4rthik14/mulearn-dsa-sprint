@@ -70,7 +70,7 @@ export default function ProblemsManager({ challengeDays, initialProblems }: Prob
   const getPlatformBadgeStyle = (platform: string) => {
     switch (platform) {
       case 'LeetCode':
-        return 'border-amber-500/20 bg-amber-500/10 text-amber-500'
+        return 'border-yellow-500/20 bg-yellow-500/10 text-yellow-400'
       case 'Codeforces':
         return 'border-blue-500/20 bg-blue-500/10 text-blue-400'
       case 'HackerRank':
@@ -397,7 +397,7 @@ export default function ProblemsManager({ challengeDays, initialProblems }: Prob
           <div className="relative w-full max-w-md rounded-xl border border-zinc-850 bg-zinc-950 p-6 shadow-2xl z-10">
             <div className="flex items-center justify-between border-b border-zinc-900 pb-3 mb-4">
               <h3 className="text-sm font-bold font-mono text-white flex items-center gap-2">
-                <Plus className="h-4.5 w-4.5 text-orange-500" />
+                <Plus className="h-4.5 w-4.5 text-blue-500" />
                 ADD PROBLEM TO DAY {selectedDayInfo.dayNumber}
               </h3>
               <button 

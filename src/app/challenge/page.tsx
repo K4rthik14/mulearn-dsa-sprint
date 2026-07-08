@@ -94,13 +94,15 @@ export default async function ChallengePage(props: { searchParams: Promise<Searc
       // Determine target sprint
       let activeEnrollment = null
       if (requestedSprintSlug) {
-        activeEnrollment = enrollments.find(e => e.sprints?.slug === requestedSprintSlug)
+        activeEnrollment = enrollments.find(e => (e.sprints as any)?.slug === requestedSprintSlug)
       }
       if (!activeEnrollment) {
         activeEnrollment = enrollments[0]
       }
 
-      currentSprint = activeEnrollment.sprints
+      currentSprint = Array.isArray(activeEnrollment.sprints)
+        ? activeEnrollment.sprints[0]
+        : activeEnrollment.sprints
 
       // Fetch all challenge days of this sprint to compute unlock states
       const { data: sprintDays } = await supabase

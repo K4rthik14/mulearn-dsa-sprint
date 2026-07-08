@@ -330,7 +330,7 @@ export default async function AdminPage(props: { searchParams: Promise<AdminSear
           {/* Create Sprint */}
           <div className="border border-zinc-850 p-4 rounded bg-zinc-950/20 space-y-3.5">
             <div className="font-bold text-white uppercase">Create Track</div>
-            <form action={createSprint} className="space-y-3">
+            <form action={async (fd: FormData) => { await createSprint(fd) }} className="space-y-3">
               <div>
                 <label className="block text-[10px] text-zinc-500 uppercase font-bold tracking-wider">Track Name</label>
                 <input
